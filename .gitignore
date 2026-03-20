@@ -29,3 +29,7 @@ _.sln
 .claude/
 .env
 .env.local
+
+# Auth secrets
+auth.json
+.codex/auth.json

@@ -7,6 +7,7 @@ import process from "node:process";
 
 function parseArgs(argv) {
   const args = {
+    activateBuild: true,
     apiBase: "https://api.taruvi.cloud",
     dryRun: false,
     internal: true,
@@ -19,6 +20,10 @@ function parseArgs(argv) {
 
     if (arg === "--dry-run") {
       args.dryRun = true;
+      continue;
+    }
+    if (arg === "--no-activate-build") {
+      args.activateBuild = false;
       continue;
     }
     if (arg === "--keep-zip") {
@@ -51,6 +56,10 @@ function parseArgs(argv) {
     }
     if (arg === "--app-field") {
       args.appField = argv[++index];
+      continue;
+    }
+    if (arg === "--activation-token") {
+      args.activationToken = argv[++index];
       continue;
     }
     if (arg === "--zip-path") {
@@ -235,12 +244,27 @@ async function requestJson(url, options) {
   };
 }
 
+function bearerHeaders(token) {
+  return {
+    Accept: "*/*",
+    Authorization: `Bearer ${token}`,
+    "Content-Type": "application/json",
+  };
+}
+
 function toArray(payload) {
   if (Array.isArray(payload)) return payload;
   if (Array.isArray(payload?.results)) return payload.results;
   if (Array.isArray(payload?.data)) return payload.data;
   if (Array.isArray(payload?.items)) return payload.items;
   return [];
+}
+
+function workerPayload(payload) {
+  if (payload?.data && !Array.isArray(payload.data)) {
+    return payload.data;
+  }
+  return payload;
 }
 
 function workerName(worker) {
@@ -327,6 +351,47 @@ async function createWorker(collectionUrl, apiKey, zipPath, filename, name, inte
   });
 }
 
+async function setActiveBuild(detailUrl, activationToken, buildUuid) {
+  const response = await requestJson(new URL("set-active-build/", detailUrl).toString(), {
+    body: JSON.stringify({ build_uuid: buildUuid }),
+    headers: bearerHeaders(activationToken),
+    method: "PATCH",
+  });
+
+  if (!response.ok) {
+    throw new Error(`Failed to set active build (${response.status}): ${response.text}`);
+  }
+
+  return response.data ?? response.text;
+}
+
+async function maybeActivateBuild(worker, detailUrl, activationToken, activateBuild) {
+  const payload = workerPayload(worker);
+  const latestBuildUuid = payload?.latest_build?.uuid;
+  const activeBuildUuid = payload?.active_build_uuid ?? payload?.active_build_info?.uuid;
+
+  if (!activateBuild) {
+    return null;
+  }
+  if (!latestBuildUuid) {
+    console.log("No latest build UUID returned, skipping active build step");
+    return null;
+  }
+  if (activeBuildUuid === latestBuildUuid) {
+    console.log("Latest build is already active");
+    return null;
+  }
+  if (!activationToken) {
+    console.log("No activation bearer token configured, skipping active build step");
+    return null;
+  }
+
+  const activationResult = await setActiveBuild(detailUrl, activationToken, latestBuildUuid);
+  console.log(`Set build '${latestBuildUuid}' as active`);
+  console.log(JSON.stringify(activationResult, null, 2));
+  return activationResult;
+}
+
 async function main() {
   const args = parseArgs(process.argv.slice(2));
   const projectRoot = resolve(args.projectRoot);
@@ -337,6 +402,8 @@ async function main() {
   const apiKey = env.VITE_TARUVI_API_KEY;
   const appName = args.appName || env.VITE_TARUVI_APP_SLUG;
   const appField = args.appField || env.TARUVI_FRONTEND_WORKER_APP || env.VITE_TARUVI_APP_SLUG;
+  const activationToken =
+    args.activationToken || env.TARUVI_FRONTEND_WORKER_BEARER_TOKEN || env.TARUVI_CONSOLE_ACCESS_TOKEN;
   const site = args.site || env.TARUVI_FRONTEND_WORKER_SITE || inferSiteFromBaseUrl(env.VITE_TARUVI_BASE_URL);
 
   if (!apiKey) {
@@ -393,6 +460,7 @@ async function main() {
       const updateResult = await patchWorker(detailUrl, apiKey, zipPath, filename);
       console.log(`Updated existing frontend worker '${appName}'`);
       console.log(JSON.stringify(updateResult, null, 2));
+      await maybeActivateBuild(updateResult, detailUrl, activationToken, args.activateBuild);
       return;
     }
 
@@ -409,6 +477,10 @@ async function main() {
     if (createResult.ok) {
       console.log(`Created new frontend worker '${appName}'`);
       console.log(JSON.stringify(createResult.data, null, 2));
+      const detailUrl = workerDetailUrl(createResult.data, collectionUrl, args.apiBase);
+      if (detailUrl) {
+        await maybeActivateBuild(createResult.data, detailUrl, activationToken, args.activateBuild);
+      }
       return;
     }
 
@@ -426,6 +498,7 @@ async function main() {
       const updateResult = await patchWorker(detailUrl, apiKey, zipPath, filename);
       console.log(`Updated existing frontend worker '${appName}' after create conflict`);
       console.log(JSON.stringify(updateResult, null, 2));
+      await maybeActivateBuild(updateResult, detailUrl, activationToken, args.activateBuild);
       return;
     }
 
@@ -446,6 +519,10 @@ async function main() {
       if (createResult.ok) {
         console.log(`Created new frontend worker '${alternateName}'`);
         console.log(JSON.stringify(createResult.data, null, 2));
+        const detailUrl = workerDetailUrl(createResult.data, collectionUrl, args.apiBase);
+        if (detailUrl) {
+          await maybeActivateBuild(createResult.data, detailUrl, activationToken, args.activateBuild);
+        }
         return;
       }
     }

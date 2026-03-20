@@ -24,6 +24,7 @@ node .codex/skills/taruvi-frontend-worker-deploy/scripts/deploy-frontend-worker.
 5. Use `--dry-run` to validate the build and zip flow without uploading anything.
 6. If the build fails because local tools are missing, install the project dependencies before retrying the deploy.
 7. The bundled script sets `XDG_CONFIG_HOME` inside the project during builds so `refine build` does not fail on machines where home-directory config writes are blocked.
+8. After upload, the script attempts to set the newest build active when `TARUVI_FRONTEND_WORKER_BEARER_TOKEN` or `TARUVI_CONSOLE_ACCESS_TOKEN` is available.
 
 ## Defaults
 
@@ -32,10 +33,12 @@ node .codex/skills/taruvi-frontend-worker-deploy/scripts/deploy-frontend-worker.
 - Use `VITE_TARUVI_APP_SLUG` as the preferred frontend worker name.
 - Use `VITE_TARUVI_APP_SLUG` as the frontend worker `app` field too.
 - Use `TARUVI_FRONTEND_WORKER_SITE` when present; otherwise infer the site from `VITE_TARUVI_BASE_URL`.
+- Use `TARUVI_FRONTEND_WORKER_BEARER_TOKEN` or `TARUVI_CONSOLE_ACCESS_TOKEN` for the `set-active-build` API step.
 - For this repo's current `.env`, the inferred site is `hackkj` and the worker name is `test`.
 - Create the worker with the app slug first.
 - If a worker with that exact name already exists, patch its file upload instead of creating a duplicate.
 - If name validation fails for a different reason, create a fallback worker name by appending a timestamp suffix.
+- If a newer build uploads successfully and a bearer token is configured, set that build active automatically.
 
 ## Safety
 

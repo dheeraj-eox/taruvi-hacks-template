@@ -8,6 +8,7 @@
 - `VITE_TARUVI_BASE_URL`: infer site from hostname only when an explicit site is not provided
 - `TARUVI_FRONTEND_WORKER_SITE`: optional override for the Taruvi site name
 - `TARUVI_FRONTEND_WORKER_APP`: optional override for the multipart `app` field; default to `VITE_TARUVI_APP_SLUG`
+- `TARUVI_FRONTEND_WORKER_BEARER_TOKEN` or `TARUVI_CONSOLE_ACCESS_TOKEN`: bearer token for `set-active-build`
 
 ## API Flow
 
@@ -33,6 +34,16 @@ Create request multipart fields:
 Patch request multipart fields:
 
 - `file`
+
+Set-active-build endpoint:
+
+```text
+https://api.taruvi.cloud/sites/<site>/api/cloud/frontend_workers/<worker-id-or-slug>/set-active-build/
+```
+
+Set-active-build request body:
+
+- `build_uuid`
 
 ## Selection Rules
 

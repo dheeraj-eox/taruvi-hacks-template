@@ -1,5 +1,24 @@
+#!/usr/bin/env bash
+
+set -euo pipefail
+
+if [ ! -f .env ]; then
+  cp .env.example .env
+fi
+
+set -a
+source .env
+set +a
+
+BASE_URL="${VITE_TARUVI_BASE_URL:-}"
+BASE_URL="${BASE_URL%/}"
+MCP_URL="${BASE_URL}/mcp/"
+
+mkdir -p .codex
+
+cat > .codex/config.toml <<EOF
 [mcp_servers.taruvi]
-url = "http://tenant1.127.0.0.1.nip.io:8000/mcp/"
+url = "${MCP_URL}"
 
 [mcp_servers.taruvi.http_headers]
 Accept = "application/json, text/event-stream"
@@ -20,3 +39,5 @@ args = ["@playwright/mcp@latest"]
 [mcp_servers.chrome-devtools]
 command = "npx"
 args = ["@anthropic-ai/chrome-devtools-mcp@latest"]
+EOF
+

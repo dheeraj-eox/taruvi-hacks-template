@@ -11,7 +11,7 @@ import {
 import { taruviClient } from "../taruviClient";
 
 // Re-export types for easy access throughout the app
-export type { TaruviUser } from "@taruvi/sdk";
+export type { UserData as TaruviUser } from "@taruvi/sdk";
 export type {
   TaruviMeta,
   TaruviListResponse,

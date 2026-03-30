@@ -1,5 +1,18 @@
 # CLAUDE.md - AI Assistant Guide for Taruvi Refine Template
 
+## Functional App Default
+
+If the user asks to create or build an app, default to a functional MVP, not a mockup.
+
+A functional MVP in this repo means:
+- create Taruvi schema with MCP tools
+- seed enough real data to use the app
+- register Refine resources in `src/App.tsx`
+- build real list/create/edit/show flows for core resources
+- wire dashboards/pages to live data, not hardcoded arrays
+
+If the user wants a UI-only prototype, they must explicitly say so.
+
 ## Project Overview
 
 This is a **Refine.dev v5** project - a React-based framework for building admin panels, dashboards, and internal tools.

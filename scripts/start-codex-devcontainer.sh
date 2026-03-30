@@ -72,4 +72,4 @@ fi
 
 echo "=== Launching Codex ==="
 
-exec codex --sandbox danger-full-access
+exec codex --dangerously-bypass-approvals-and-sandbox

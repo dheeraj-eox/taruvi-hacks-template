@@ -1,5 +1,18 @@
 # CLAUDE.md - AI Assistant Guide for Taruvi Refine Template
 
+## Functional App Default
+
+If the user asks to create or build an app, default to a functional MVP, not a mockup.
+
+A functional MVP in this repo means:
+- create Taruvi schema with MCP tools
+- seed enough real data to use the app
+- register Refine resources in `src/App.tsx`
+- build real list/create/edit/show flows for core resources
+- wire dashboards/pages to live data, not hardcoded arrays
+
+If the user wants a UI-only prototype, they must explicitly say so.
+
 ## Project Overview
 
 This is a **Refine.dev v5** project - a React-based framework for building admin panels, dashboards, and internal tools. Refine provides a collection of hooks and components that abstract CRUD operations and integrate with various backend services.
@@ -28,6 +41,12 @@ This is a **Refine.dev v5** project - a React-based framework for building admin
 3. **Plan with TodoWrite**
    - Break down complex tasks into steps
    - Track progress through the implementation
+
+### Notification Rule
+
+- Use the app's existing Refine notification integration via `useNotificationProvider` from `@refinedev/mui`
+- Do not create custom notification systems, ad hoc snackbars, or alternate toast providers when implementing feedback
+- When adding success/error feedback, wire it through the existing notification provider already configured in `/src/App.tsx`
 
 ---
 
@@ -2393,5 +2412,49 @@ This is a **Refine.dev v5 project** - leverage the framework's hooks and pattern
 - All 8 @taruvi/refine-providers now configured and available
 - Removed legacy authProvider.ts and custom DataProvider from taruviClient.ts
 - functionHelpers.ts now uses taruviFunctionsProvider instead of direct HTTP calls
+
+## Frontend Deployment
+
+### Automated Deploy (via script)
+```bash
+npm run deploy
+```
+Prompts for site name, then builds, zips `dist/`, and uploads to Taruvi frontend workers API.
+
+### Manual Deploy (inside Docker)
+
+1. **Build:**
+   ```bash
+   npm run build
+   ```
+
+2. **Zip the dist folder:**
+   ```bash
+   cd /app && zip -r dist.zip dist/
+   ```
+
+3. **Upload to Taruvi:**
+   ```bash
+   curl -X POST "https://api.taruvi.cloud/sites/${SITE_NAME}/api/cloud/frontend_workers/" \
+     -H "Authorization: Api-Key ${TARUVI_API_KEY}" \
+     -F "name=${TARUVI_APP_SLUG}" \
+     -F "is_internal=true" \
+     -F "file=@dist.zip;type=application/zip"
+   ```
+
+4. **Cleanup:**
+   ```bash
+   rm -f dist.zip
+   ```
+
+### Environment Variables Required
+- `TARUVI_API_KEY` — API key for authentication
+- `TARUVI_APP_SLUG` — App/worker name
+- `SITE_NAME` — Target site (e.g., inferred from `TARUVI_SITE_URL` hostname)
+
+### Build Notes (Docker)
+- `refine build` does NOT work inside the Docker container (symlinked node_modules)
+- Use `vite build --configLoader runner` directly (already configured in `npm run build`)
+- Set `XDG_CONFIG_HOME=/tmp` if running refine CLI commands
 
 Follow UI Guidelines from UI_Guidelines.md

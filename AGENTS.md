@@ -29,6 +29,12 @@ This is a **Refine.dev v5** project - a React-based framework for building admin
 2. **Read Relevant Files** - Always use Read tool before editing, check existing patterns
 3. **Plan with TodoWrite** - Break down complex tasks into steps, track progress
 
+### Notification Rule
+
+- Use the app's existing Refine notification integration via `useNotificationProvider` from `@refinedev/mui`
+- Do not create custom notification systems, ad hoc snackbars, or alternate toast providers when implementing feedback
+- When adding success/error feedback, wire it through the existing notification provider already configured in `/src/App.tsx`
+
 ## Data Providers
 
 All providers are in `/src/providers/refineProviders.ts` (package: `@taruvi/refine-providers`) and registered in `/src/App.tsx`.
@@ -641,6 +647,131 @@ const go = useGo();
 go({ to: "/tasks/new", type: "push" });  // or "replace"
 const navigate = useNavigate();
 navigate(-1);  // Go back
+```
+
+### Resource Introspection Changes
+
+```typescript
+// ❌ WRONG (v4)
+import { useResource } from "@refinedev/core";
+useResource("posts");
+
+// ✅ CORRECT (v5)
+import { useResourceParams } from "@refinedev/core";
+useResourceParams({ resource: "posts" });
+```
+
+### Access Control Props
+
+```typescript
+// ❌ WRONG (v4)
+<CreateButton ignoreAccessControlProvider />
+
+// ✅ CORRECT (v5)
+<CreateButton accessControl={{ enabled: false }} />
+```
+
+### Resource Configuration
+
+```typescript
+// ❌ WRONG (v4)
+<Refine
+  resources={[{
+    name: "posts",
+    options: { label: "Blog Posts" }
+  }]}
+/>
+
+// ✅ CORRECT (v5)
+<Refine
+  resources={[{
+    name: "posts",
+    meta: { label: "Blog Posts", canDelete: true, icon: <PostIcon /> }
+  }]}
+/>
+```
+
+### Type Import Changes
+
+```typescript
+// ❌ WRONG (v4)
+import { type AuthBindings, type RouterBindings } from "@refinedev/core";
+
+// ✅ CORRECT (v5)
+import { type AuthProvider, type RouterProvider } from "@refinedev/core";
+```
+
+### Complete v5 Hook Examples
+
+**List Page with useDataGrid:**
+```typescript
+import { useDataGrid } from "@refinedev/mui";
+
+export const BlogPostList = () => {
+  const { dataGridProps, tableQuery } = useDataGrid({
+    resource: "blog_posts",
+    pagination: { mode: "server", pageSize: 10 },
+    sorters: { initial: [{ field: "created_at", order: "desc" }] },
+    filters: { permanent: [{ field: "deleted", operator: "eq", value: false }] },
+  });
+
+  if (tableQuery.isLoading) return <Loading />;
+  if (tableQuery.isError) return <Error />;
+
+  return <DataGrid {...dataGridProps} />;
+};
+```
+
+**Show Page with useShow + useOne:**
+```typescript
+import { useShow, useOne } from "@refinedev/core";
+
+export const BlogPostShow = () => {
+  const { result, query: { isLoading } } = useShow({ resource: "blog_posts" });
+  const post = result;
+
+  const { result: category, query: { isLoading: categoryLoading } } = useOne({
+    resource: "categories",
+    id: post?.category_id,
+    queryOptions: { enabled: !!post?.category_id },
+  });
+
+  if (isLoading || categoryLoading) return <Loading />;
+
+  return (
+    <Show>
+      <TextField label="Title" value={post?.title} />
+      <TextField label="Category" value={category?.title} />
+    </Show>
+  );
+};
+```
+
+**Create/Update with Mutations:**
+```typescript
+import { useCreate, useUpdate } from "@refinedev/core";
+
+export const BlogPostForm = ({ id }: { id?: string }) => {
+  const { mutate: createPost, mutation: createMutation } = useCreate();
+  const { mutate: updatePost, mutation: updateMutation } = useUpdate();
+
+  const handleSubmit = (values: any) => {
+    if (id) {
+      updatePost({ resource: "blog_posts", id, values, meta: { foo: "bar" } });
+    } else {
+      createPost({ resource: "blog_posts", values });
+    }
+  };
+
+  const isLoading = createMutation.isPending || updateMutation.isPending;
+
+  return (
+    <form onSubmit={handleSubmit}>
+      {/* form fields */}
+      <button disabled={isLoading}>{isLoading ? "Saving..." : "Save"}</button>
+    </form>
+  );
+};
 ```
 
 ### Migration Helper

@@ -12,10 +12,7 @@ import Navkit from '@taruvi/navkit';
 import Box from "@mui/material/Box";
 import CssBaseline from "@mui/material/CssBaseline";
 import GlobalStyles from "@mui/material/GlobalStyles";
-import routerProvider, {
-  DocumentTitleHandler,
-  UnsavedChangesNotifier,
-} from "@refinedev/react-router";
+import routerProvider, { DocumentTitleHandler } from "@refinedev/react-router";
 import { BrowserRouter, Outlet, Route, Routes } from "react-router";
 import { taruviClient } from "./taruviClient";
 import {
@@ -28,16 +25,17 @@ import {
   taruviAnalyticsProvider,
   // taruviAccessControlProvider, // Uncomment to enable Cerbos-based access control
 } from "./providers/refineProviders";
-import { CustomSider } from "./components/sidenav";
+import { CustomSider, UnsavedChangesDialog } from "./components";
 import { LoginRedirect } from "./components/auth/LoginRedirect";
 import { ColorModeContextProvider, ColorModeContext } from "./contexts/color-mode";
-import { AppSettingsProvider } from "./contexts/app-settings";
+import {AppSettingsProvider, useAppSettings} from "./contexts/app-settings";
 import { useContext, useRef, useEffect } from "react";
 import { Home } from "./pages/home";
 
 const AppContent = () => {
   const { setMode } = useContext(ColorModeContext);
   const navRef = useRef<HTMLDivElement>(null);
+  const { settings } = useAppSettings()
 
   useEffect(() => {
     if (navRef.current) {
@@ -108,8 +106,8 @@ const AppContent = () => {
                 </Routes>
 
                 <RefineKbar />
-                <UnsavedChangesNotifier />
-                <DocumentTitleHandler />
+                <UnsavedChangesDialog />
+                <DocumentTitleHandler handler={() => settings?.displayName || ""}/>
               </Refine>
               <DevtoolsPanel />
             </DevtoolsProvider>

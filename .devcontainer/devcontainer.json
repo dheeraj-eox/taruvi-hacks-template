@@ -1,6 +1,11 @@
 {
   "name": "taruvi-refine-template",
   "image": "mcr.microsoft.com/devcontainers/javascript-node:1-22-bullseye",
+  "hostRequirements": {
+    "cpus": 4,
+    "memory": "16gb",
+    "storage": "32gb"
+  },
   "remoteEnv": {
     "CODEX_HOME": "${containerWorkspaceFolder}/.codex"
   },

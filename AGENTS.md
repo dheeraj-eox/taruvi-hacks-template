@@ -13,31 +13,6 @@ A functional MVP in this repo means:
 
 If the user wants a UI-only prototype, they must explicitly say so.
 
-## Taruvi Skill Requirement
-
-When making dashboards or building anything that uses Taruvi, use the `taruvi-packages-usage` skill.
-
-- This applies whenever the task mentions Taruvi, Refine + Taruvi, `@taruvi/sdk`, or `@taruvi/refine-providers`
-- Use that skill's `REFERENCE.md` as the source of truth for Taruvi usage
-- Do not answer Taruvi usage questions from memory or invent generic REST endpoints
-
-## Mandatory Taruvi Preflight
-
-For any task involving Taruvi, Refine + Taruvi, `@taruvi/sdk`, or `@taruvi/refine-providers`:
-
-1. You MUST open and read `.codex/skills/taruvi-packages-usage/SKILL.md`
-2. You MUST open and read `.codex/skills/taruvi-packages-usage/REFERENCE.md`
-3. Before making edits, state in a commentary update that you read them
-4. In the final response, cite the specific Taruvi reference section used
-
-Do not implement from memory.
-Do not treat prior knowledge as sufficient.
-If these files are unavailable, stop and say so.
-
-Every Taruvi-related change must include:
-- a short note in `docs/` naming the Taruvi reference sections consulted
-- at least one file/path citation to the reference in the final response
-
 ## Project Overview
 
 This is a **Refine.dev v5** project - a React-based framework for building admin panels, dashboards, and internal tools.
@@ -61,6 +36,16 @@ IMPORTANT: Always use Context7 MCP Skill when I need library/API, Refine v5, MUI
 - Use the app's existing Refine notification integration via `useNotificationProvider` from `@refinedev/mui`
 - Do not create custom notification systems, ad hoc snackbars, or alternate toast providers when implementing feedback
 - When adding success/error feedback, wire it through the existing notification provider already configured in `/src/App.tsx`
+
+## Taruvi Skill Requirements
+
+For any task involving Taruvi, Refine + Taruvi, `@taruvi/sdk`, or `@taruvi/refine-providers`:
+
+1. Use the `taruvi-packages-usage` skill.
+2. Before making edits, open and read:
+   - `.codex/skills/taruvi-packages-usage/SKILL.md`
+   - `.codex/skills/taruvi-packages-usage/REFERENCE.md`
+3. Do not answer or implement Taruvi usage from memory, and do not invent generic REST endpoints
 
 ## IMPORTANT : Data Providers
 

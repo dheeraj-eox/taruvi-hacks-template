@@ -19,10 +19,8 @@ import {
   taruviDataProvider,
   taruviAuthProvider,
   taruviStorageProvider,
-  taruviFunctionsProvider,
   taruviAppProvider,
   taruviUserProvider,
-  taruviAnalyticsProvider,
   // taruviAccessControlProvider, // Uncomment to enable Cerbos-based access control
 } from "./providers/refineProviders";
 import { CustomSider, UnsavedChangesDialog } from "./components";
@@ -67,10 +65,8 @@ const AppContent = () => {
                 dataProvider={{
                   default: taruviDataProvider,
                   storage: taruviStorageProvider,
-                  functions: taruviFunctionsProvider,
                   app: taruviAppProvider,
                   user: taruviUserProvider,
-                  analytics: taruviAnalyticsProvider,
                 }}
                 notificationProvider={useNotificationProvider}
                 routerProvider={routerProvider}

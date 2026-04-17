@@ -37,6 +37,14 @@ IMPORTANT: Always use Context7 MCP Skill when I need library/API, Refine v5, MUI
 - Do not create custom notification systems, ad hoc snackbars, or alternate toast providers when implementing feedback
 - When adding success/error feedback, wire it through the existing notification provider already configured in `/src/App.tsx`
 
+### Browser errors → `logs/frontend.ndjson`
+
+When the user reports a browser problem, read `logs/frontend.ndjson` instead of asking them to open DevTools. It's NDJSON — one event per line with `timestamp`, `source`, `text`, `session_id`, and for network errors `method`/`url`/`status`. Secrets are redacted server-side.
+
+After shipping a fix, truncate before asking the user to re-test so the next reproduction is unambiguous: `: > logs/frontend.ndjson`.
+
+If the file is missing, no errors have been captured yet — ask the user to reproduce the issue once, then re-read.
+
 ## Mandatory Taruvi Preflight
 
 For any task involving Taruvi, Refine + Taruvi, `@taruvi/sdk`, or `@taruvi/refine-providers`:

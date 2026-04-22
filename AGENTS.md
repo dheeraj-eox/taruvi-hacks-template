@@ -19,6 +19,8 @@ This is a **Refine.dev v5** project - a React-based framework for building admin
 
 **CRITICAL:** This project uses **Refine v5** which has significantly different hook syntax from v4. Always use the v5 patterns documented in the "[IMPORTANT: Refine v5 Syntax Changes](#important-refine-v5-syntax-changes)" section below.
 
+**CRITICAL:** Even if the user asks for plain HTML, CSS, or JavaScript — always use React, Refine v5 hooks, MUI components, and TypeScript. Do not build outside the framework.
+
 IMPORTANT: Always use Context7 MCP Skill when I need library/API, Refine v5, MUI documentation without me having to explicitly ask.
 
 **When confused or need clarification:** Use the Task tool with `subagent_type='Explore'` and set thoroughness to "medium" or "very thorough" to understand the codebase patterns before making changes.

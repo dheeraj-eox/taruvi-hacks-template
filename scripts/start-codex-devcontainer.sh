@@ -43,13 +43,8 @@ mkdir -p "$CODEX_HOME/projects"
 
 bash scripts/refresh-codex-config.sh
 
-if [ -f /root/.codex/auth.json ] && [ ! -f "$CODEX_HOME/auth.json" ]; then
-  cp /root/.codex/auth.json "$CODEX_HOME/auth.json"
-fi
-
-AUTH_PATH="$CODEX_HOME/auth.json"
-if [ ! -f "$AUTH_PATH" ]; then
-  echo "please copy auth.json to $AUTH_PATH and press Enter"
+if [ -z "${OPENAI_API_KEY//[[:space:]]/}" ]; then
+  echo "OPENAI_API_KEY is not set. Please ensure it is configured as a Codespaces secret and press Enter to retry."
   read -r
 fi
 

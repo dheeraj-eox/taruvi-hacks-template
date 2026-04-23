@@ -91,7 +91,7 @@ useCustom({
   dataProviderName: "app",
   url: "my-func",
   method: "post",
-  config: { payload: { ... } },
+  payload: { ... },
   meta: { kind: "function" },
 });
 ```

@@ -149,6 +149,8 @@ For any backend-backed list or table page, the default implementation must be ba
 - backend pagination is required by default
 - default list `pageSize` is `10`; recommend exposing `10`, `20`, `50`, and `100` as user-selectable options
 - search, filters, and sorting must be server-side by default
+- any backend-driven list search input must use 300–500ms debounce before updating provider filters
+- use a single primary search control per list page — if DataGrid quick filter is enabled, do not also add a separate page-level search for the same fields
 - provide visible list controls for search and common filters by default (for example: status, department, date range, active/inactive)
 - when the list is rendered with MUI `DataGrid`, default to Refine `useDataGrid`
 - client-side filtering or search is only allowed if the user explicitly asks for it or the list is intentionally local-only
@@ -176,6 +178,7 @@ For permission checks in app code:
 - do not rely on `params.entityType` for access-control checks
 - verify runtime payloads in browser network logs: each `check/resources` `resource.kind` must exactly match the requested `resource` string
 - when SDK/provider ACL contract changes, app code must be updated in the same release cycle and versioned accordingly
+- after wiring access control, verify every role's UI path: check that list actions (edit/delete/show buttons), create buttons, and menu items are correctly shown or hidden for each role. Do not mark access control as done until this is verified.
 
 ### Step 9 — Default Bulk Actions to Backend Bulk Operations
 

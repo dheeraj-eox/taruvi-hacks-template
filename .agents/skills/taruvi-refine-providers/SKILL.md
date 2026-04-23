@@ -100,7 +100,7 @@ Use this matrix for the current non-deprecated provider surface:
 10. For Taruvi function execution from frontend, enforce this exact contract (hard requirement):
    - `dataProviderName: "app"`
    - `meta.kind: "function"`
-   - `config.payload` for input params
+   - `payload` for input params
    - `url` must be the function slug
    - do not use `values` for function input payloads
    - no new usage of `functionsDataProvider` in frontend app code
@@ -108,6 +108,8 @@ Use this matrix for the current non-deprecated provider surface:
    - backend pagination is required by default
    - default list `pageSize` is `10`; recommend exposing `10`, `20`, `50`, and `100` page-size choices in the UI
    - search, filters, and sorters must be passed into provider calls by default
+   - any backend-driven list search input must use 300–500ms debounce before updating provider filters
+   - use a single primary search control per list page — if DataGrid quick filter is enabled, do not also add a separate page-level search for the same fields
    - when rendering with MUI `DataGrid`, default to Refine `useDataGrid`
    - do not re-implement the primary list filtering logic in component state over fetched backend rows unless the user explicitly asked for client-side behavior
 12. For network-backed dropdowns/typeaheads:
@@ -129,7 +131,7 @@ After wiring providers, verify:
 - [ ] No new usage of deprecated package APIs
 - [ ] The chosen provider/hook path matches the installed package’s current non-deprecated API
 - [ ] `useCustom` calls for functions use `dataProviderName: "app"` and `meta.kind: "function"`
-- [ ] Function inputs are passed via `config.payload` (not `values`) for `meta.kind: "function"` calls
+- [ ] Function inputs are passed via `payload` (not `values` or `config.payload`) for `meta.kind: "function"` calls
 - [ ] No new `functionsDataProvider` usage in frontend app code
 - [ ] Access-control checks use prefixed ACL resource strings from the published contract
 - [ ] Runtime network validation: in `check/resources` payload, each `resource.kind` exactly matches the requested `resource` string (no composition, no double-prefix)
@@ -245,9 +247,7 @@ const { data } = useCustom({
   url: "employee-terminate",
   method: "post",
   dataProviderName: "app",
-  config: {
-    payload: { employee_id: "emp-1", termination_reason: "Policy violation" },
-  },
+  payload: { employee_id: "emp-1", termination_reason: "Policy violation" },
   meta: { kind: "function" },
 });
 ```
@@ -334,8 +334,10 @@ Refine operator keys supported by the Taruvi provider mapping:
 
 ## Gotchas
 
+- **Prefilled form fields** — when a form field has a prefilled/default value (e.g., edit forms, seeded values), set `InputLabelProps: { shrink: true }` on the TextField so the label doesn't overlap the value.
+
 - **Deprecated providers** — `functionsDataProvider` and `analyticsDataProvider` are removed. Migrate to `appDataProvider` + `useCustom` with `meta.kind: "function"` or `meta.kind: "analytics"`. Old imports will compile but throw at runtime.
-- **Wrong function payload shape** — for `meta.kind: "function"`, pass inputs via `config.payload`. Using `values` or top-level `payload` causes contract drift and runtime issues.
+- **Wrong function payload shape** — for `meta.kind: "function"`, pass inputs via top-level `payload`. Using `values` or `config.payload` causes contract drift and runtime issues.
 - **Deprecated package path in new code** — do not add new code on deprecated providers or compatibility helpers just because old examples still exist. Use the installed package’s current canonical API surface.
 - **Auth redirect loop** — `authProvider.login()` redirects to `/accounts/login/` and tokens come back in the URL hash. Do not try to intercept mid-redirect or parse the URL yourself — the provider handles it.
 - **401 vs 403 confusion** — `onError()` handles both: 401 means session expired (trigger re-login), 403 means authenticated but forbidden (show access denied). Treating 403 as 401 causes infinite re-login loops.

@@ -62,9 +62,7 @@ const { data, isLoading } = useCustom({
   dataProviderName: "app",
   url: "process-order",
   method: "post",
-  config: {
-    payload: { orderId: 123, action: "confirm" },
-  },
+  payload: { orderId: 123, action: "confirm" },
   meta: { kind: "function" },
 });
 
@@ -73,7 +71,7 @@ useCustom({
   dataProviderName: "app",
   url: "long-running-task",
   method: "post",
-  config: { payload: { taskId: 789 } },
+  payload: { taskId: 789 },
   meta: { kind: "function", async: true },
 });
 ```
@@ -87,9 +85,7 @@ const { data } = useCustom({
   dataProviderName: "app",
   url: "monthly-sales-report",
   method: "post",
-  config: {
-    payload: { start_date: "2024-01-01", end_date: "2024-12-31", region: "US" },
-  },
+  payload: { start_date: "2024-01-01", end_date: "2024-12-31", region: "US" },
   meta: { kind: "analytics" },
 });
 ```
@@ -102,7 +98,7 @@ const { result: summaryResult } = useCustom({
   dataProviderName: "app",
   url: "hrms-dashboard-summary",
   method: "post",
-  config: { payload: {} },
+  payload: {},
   meta: { kind: "analytics" },
 });
 

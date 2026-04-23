@@ -120,7 +120,7 @@ const { result } = useCustom({
   url: "hrms-dashboard-summary",
   method: "post",
   dataProviderName: "app",
-  config: { payload: {} },
+  payload: {},
   meta: { kind: "analytics" },
 });
 ```

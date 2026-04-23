@@ -20,6 +20,8 @@ export CODEX_HOME=/app/.codex
 mkdir -p "$CODEX_HOME"
 
 cat > "$CODEX_HOME/config.toml" <<EOF
+model = "gpt-5.4-mini"
+
 [mcp_servers.taruvi]
 url = "${TARUVI_SITE_URL}/mcp/"
 
@@ -29,8 +31,12 @@ Authorization = "Api-Key ${TARUVI_API_KEY}"
 X-App-Slug = "${TARUVI_APP_SLUG}"
 EOF
 
-# Copy auth.json into CODEX_HOME
-cp /root/.codex/auth.json "$CODEX_HOME/auth.json"
+echo "=== Fetching OPENAI_API_KEY from Taruvi secrets ==="
+OPENAI_API_KEY=$(curl -sf \
+  -H "Authorization: Api-Key ${TARUVI_API_KEY}" \
+  "${TARUVI_SITE_URL}/api/secrets/OPENAI_API_KEY/" \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['value'])")
+export OPENAI_API_KEY
 
 echo "=== Codex config written to $CODEX_HOME/config.toml ==="
 

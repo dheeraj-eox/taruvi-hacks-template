@@ -7,8 +7,7 @@
     "storage": "32gb"
   },
   "remoteEnv": {
-    "CODEX_HOME": "${containerWorkspaceFolder}/.codex",
-    "OPENAI_API_KEY": "${localEnv:OPENAI_API_KEY}"
+    "CODEX_HOME": "${containerWorkspaceFolder}/.codex"
   },
   "postCreateCommand": "bash -lc '[ -f .mcp.json ] || cp .mcp.example.json .mcp.json; [ -f .env ] || cp .env.example .env; mkdir -p .codex/projects; source /usr/local/share/nvm/nvm.sh; nvm install 22; nvm use 22; npm install --legacy-peer-deps; command -v codex >/dev/null 2>&1 || npm install -g @openai/codex'",
   "postStartCommand": "bash -lc '[ -f .mcp.json ] || cp .mcp.example.json .mcp.json; [ -f .env ] || cp .env.example .env; mkdir -p .codex/projects'",

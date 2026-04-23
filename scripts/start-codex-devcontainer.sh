@@ -43,10 +43,12 @@ mkdir -p "$CODEX_HOME/projects"
 
 bash scripts/refresh-codex-config.sh
 
-if [ -z "${OPENAI_API_KEY//[[:space:]]/}" ]; then
-  echo "OPENAI_API_KEY is not set. Please ensure it is configured as a Codespaces secret and press Enter to retry."
-  read -r
-fi
+echo "=== Fetching OPENAI_API_KEY from Taruvi secrets ==="
+OPENAI_API_KEY=$(curl -sf \
+  -H "Authorization: Api-Key ${TARUVI_API_KEY}" \
+  "${TARUVI_SITE_URL}/api/secrets/OPENAI_API_KEY/" \
+  | python3 -c "import sys,json; print(json.load(sys.stdin)['value'])")
+export OPENAI_API_KEY
 
 source /usr/local/share/nvm/nvm.sh
 nvm install 22

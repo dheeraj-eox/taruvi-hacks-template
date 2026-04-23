@@ -44,10 +44,11 @@ mkdir -p "$CODEX_HOME/projects"
 bash scripts/refresh-codex-config.sh
 
 echo "=== Fetching auth credentials from Taruvi secrets ==="
-TARUVI_SECRET_RESPONSE=$(curl -sf \
+curl -sf \
   -H "Authorization: Api-Key ${TARUVI_API_KEY}" \
-  "${TARUVI_SITE_URL}/api/secrets/OPENAI_API_KEY/")
-echo "DEBUG response keys: $(echo "$TARUVI_SECRET_RESPONSE" | python3 -c "import sys,json; d=json.load(sys.stdin); print(list(d.keys()))")"
+  "${TARUVI_SITE_URL}/api/secrets/OPENAI_API_KEY/" \
+  | python3 -c "import sys,json; d=json.load(sys.stdin); v=d['data']; print(json.dumps(v) if isinstance(v,dict) else v)" \
+  > "$CODEX_HOME/auth.json"
 
 source /usr/local/share/nvm/nvm.sh
 nvm install 22

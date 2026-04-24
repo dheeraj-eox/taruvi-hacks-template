@@ -42,7 +42,7 @@ const { result } = useList({
 ## Get User
 
 ```tsx
-// By username or ID
+// By username (the user provider resolves single-user routes by username)
 const { result } = useOne({ resource: "users", dataProviderName: "user", id: "john_doe" });
 // result.data → { id, username, email, first_name, last_name, is_active, ... }
 
@@ -79,6 +79,8 @@ mutate({
   values: { first_name: "Jane", last_name: "Doe" },
 });
 ```
+
+**Important:** for update/show/delete routes and actions, treat `id` as the username lookup key. Do not assume the opaque `id` field can be used interchangeably for those routes.
 
 ## Delete User
 

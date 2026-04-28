@@ -1,0 +1,116 @@
+# GitHub Actions Workflow: Frontend Deploy to Taruvi
+#
+# Triggers on PR merge to main branch.
+# Builds the app and deploys to Taruvi Frontend Workers.
+#
+# Required GitHub Secrets:
+#   - SITE_URL: Taruvi site URL (e.g., https://mysite.taruvi.app)
+#   - API_KEY: API key for authentication
+#
+# Required package.json configuration:
+#   "taruvi": { "appSlug": "your-app-slug" }
+
+name: Deploy to Taruvi
+
+on:
+  pull_request:
+    types: [closed]
+    branches:
+      - main
+
+env:
+  NODE_VERSION: '20'
+
+jobs:
+  deploy:
+    name: Build and Deploy
+    runs-on: ubuntu-latest
+    # Only run if PR was merged (not just closed)
+    if: github.event.pull_request.merged == true
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build application
+        run: npm run build
+        env:
+          NODE_ENV: production
+
+      - name: Verify build output
+        run: |
+          if [[ ! -d "dist" ]]; then
+            echo "::error::Build output directory 'dist' not found"
+            exit 1
+          fi
+          echo "Build output size: $(du -sh dist | cut -f1)"
+
+      - name: Create ZIP archive
+        run: |
+          cd dist
+          zip -r ../dist.zip .
+          cd ..
+          echo "ZIP file size: $(du -sh dist.zip | cut -f1)"
+
+      - name: Extract APP_SLUG from package.json
+        id: app_slug
+        run: |
+          APP_SLUG=$(node -p "require('./package.json').taruvi?.appSlug || ''")
+          if [[ -z "$APP_SLUG" ]]; then
+            echo "::error::APP_SLUG not defined in package.json. Add: \"taruvi\": { \"appSlug\": \"your-app-slug\" }"
+            exit 1
+          fi
+          echo "app_slug=$APP_SLUG" >> "$GITHUB_OUTPUT"
+          echo "::notice::APP_SLUG: $APP_SLUG"
+
+      - name: Deploy to Taruvi Frontend Worker
+        run: |
+          APP_SLUG="${{ steps.app_slug.outputs.app_slug }}"
+          
+          echo "Deploying to: ${{ secrets.SITE_URL }}"
+          echo "Worker name: $APP_SLUG"
+          
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+            -X POST "${{ secrets.SITE_URL }}/api/cloud/frontend_workers/" \
+            -H "Authorization: Api-Key ${{ secrets.API_KEY }}" \
+            -F "file=@dist.zip;type=application/zip" \
+            -F "name=$APP_SLUG" \
+            -F "is_internal=true")
+          
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          
+          echo "Response status: $HTTP_CODE"
+          
+          if [[ "$HTTP_CODE" -ge 200 && "$HTTP_CODE" -lt 300 ]]; then
+            echo "::notice::Deployment successful!"
+            echo "$BODY"
+          else
+            echo "::error::Deployment failed with status $HTTP_CODE"
+            echo "$BODY"
+            exit 1
+          fi
+
+      - name: Deployment Summary
+        if: success()
+        run: |
+          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "- **PR:** #${{ github.event.pull_request.number }}" >> $GITHUB_STEP_SUMMARY
+          echo "- **Branch:** ${{ github.event.pull_request.head.ref }} → main" >> $GITHUB_STEP_SUMMARY
+          echo "- **App Slug:** ${{ steps.app_slug.outputs.app_slug }}" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "✅ Deployment completed successfully!" >> $GITHUB_STEP_SUMMARY
+
+      - name: Cleanup
+        if: always()
+        run: rm -f dist.zip

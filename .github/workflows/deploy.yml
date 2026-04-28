@@ -37,6 +37,17 @@ jobs:
         with:
           node-version: ${{ env.NODE_VERSION }}
 
+      - name: Extract APP_SLUG from package.json
+        id: app_slug
+        run: |
+          APP_SLUG=$(node -p "require('./package.json').taruvi?.appSlug || ''")
+          if [[ -z "$APP_SLUG" ]]; then
+            echo "::error::APP_SLUG not defined in package.json. Add: \"taruvi\": { \"appSlug\": \"your-app-slug\" }"
+            exit 1
+          fi
+          echo "app_slug=$APP_SLUG" >> "$GITHUB_OUTPUT"
+          echo "::notice::APP_SLUG: $APP_SLUG"
+
       - name: Install dependencies
         run: npm install
 
@@ -44,6 +55,9 @@ jobs:
         run: npm run build
         env:
           NODE_ENV: production
+          TARUVI_SITE_URL: ${{ secrets.SITE_URL }}
+          TARUVI_API_KEY: ${{ secrets.API_KEY }}
+          TARUVI_APP_SLUG: ${{ steps.app_slug.outputs.app_slug }}
 
       - name: Verify build output
         run: |
@@ -59,17 +73,6 @@ jobs:
           zip -r ../dist.zip .
           cd ..
           echo "ZIP file size: $(du -sh dist.zip | cut -f1)"
-
-      - name: Extract APP_SLUG from package.json
-        id: app_slug
-        run: |
-          APP_SLUG=$(node -p "require('./package.json').taruvi?.appSlug || ''")
-          if [[ -z "$APP_SLUG" ]]; then
-            echo "::error::APP_SLUG not defined in package.json. Add: \"taruvi\": { \"appSlug\": \"your-app-slug\" }"
-            exit 1
-          fi
-          echo "app_slug=$APP_SLUG" >> "$GITHUB_OUTPUT"
-          echo "::notice::APP_SLUG: $APP_SLUG"
 
       - name: Deploy to Taruvi Frontend Worker
         run: |

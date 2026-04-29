@@ -180,8 +180,6 @@ jobs:
 
       - name: Deploy to Taruvi Frontend Worker
         run: |
-          set -e
-          
           APP_SLUG="${{ steps.app_slug.outputs.app_slug }}"
           SITE_URL="${{ steps.config.outputs.site_url }}"
           API_KEY="${{ steps.config.outputs.api_key }}"
@@ -191,7 +189,7 @@ jobs:
           echo "Worker name: $APP_SLUG"
           echo "Target branch: $TARGET_BRANCH"
           
-          # Make API request
+          # Make API request (don't use set -e so we can capture curl exit code)
           RESPONSE=$(curl -s -w "\n%{http_code}" \
             -X POST "${SITE_URL}/api/cloud/frontend_workers/" \
             -H "Authorization: Api-Key ${API_KEY}" \
@@ -199,12 +197,18 @@ jobs:
             -F "name=${APP_SLUG}" \
             -F "is_internal=true" \
             --connect-timeout 30 \
-            --max-time 300)
+            --max-time 300) || CURL_EXIT=$?
           
           # Check if curl failed
-          if [[ $? -ne 0 ]]; then
-            echo "::error::Failed to connect to Taruvi API at $SITE_URL"
-            echo "::error::Please verify the SITE_URL is correct and accessible"
+          if [[ -n "$CURL_EXIT" && "$CURL_EXIT" -ne 0 ]]; then
+            echo "::error::Failed to connect to Taruvi API (curl exit code: $CURL_EXIT)"
+            case $CURL_EXIT in
+              6)  echo "::error::Could not resolve host. Please verify SITE_URL is correct: $SITE_URL" ;;
+              7)  echo "::error::Failed to connect to server. Please verify the server is running and accessible." ;;
+              28) echo "::error::Connection timed out. The server may be slow or unreachable." ;;
+              35) echo "::error::SSL/TLS handshake failed. Check if the URL uses correct protocol (http/https)." ;;
+              *)  echo "::error::Please verify the SITE_URL is correct and accessible: $SITE_URL" ;;
+            esac
             exit 1
           fi
           

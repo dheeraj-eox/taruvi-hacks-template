@@ -1,11 +1,16 @@
 # GitHub Actions Workflow: Frontend Deploy to Taruvi
 #
-# Triggers on PR merge to main branch.
+# Triggers on PR merge to ANY branch.
 # Builds the app and deploys to Taruvi Frontend Workers.
 #
-# Required GitHub Secrets:
-#   - SITE_URL: Taruvi site URL (e.g., https://mysite.taruvi.app)
-#   - API_KEY: API key for authentication
+# Required GitHub Secrets (per target branch):
+#   - {BRANCH}_SITE_URL: e.g., DEV_SITE_URL, MAIN_SITE_URL
+#   - {BRANCH}_API_KEY: e.g., DEV_API_KEY, MAIN_API_KEY
+#
+# Branch name normalization:
+#   - Converted to uppercase
+#   - Hyphens replaced with underscores
+#   - Example: "feature-test" -> FEATURE_TEST_SITE_URL
 #
 # Required package.json configuration:
 #   "taruvi": { "appSlug": "your-app-slug" }
@@ -15,8 +20,6 @@ name: Deploy to Taruvi
 on:
   pull_request:
     types: [closed]
-    branches:
-      - main
 
 env:
   NODE_VERSION: '20'
@@ -25,77 +28,213 @@ jobs:
   deploy:
     name: Build and Deploy
     runs-on: ubuntu-latest
-    # Only run if PR was merged (not just closed)
     if: github.event.pull_request.merged == true
     
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Get target branch and resolve secrets
+        id: config
+        env:
+          ALL_SECRETS: ${{ toJson(secrets) }}
+        run: |
+          set -e
+          
+          # Get target branch (the branch being merged INTO)
+          TARGET_BRANCH="${{ github.event.pull_request.base.ref }}"
+          echo "Target branch: $TARGET_BRANCH"
+          echo "target_branch=$TARGET_BRANCH" >> "$GITHUB_OUTPUT"
+          
+          # Normalize branch name: uppercase, replace hyphens with underscores
+          NORMALIZED=$(echo "$TARGET_BRANCH" | tr '[:lower:]-' '[:upper:]_')
+          echo "Normalized branch name: $NORMALIZED"
+          echo "normalized_branch=$NORMALIZED" >> "$GITHUB_OUTPUT"
+          
+          # Construct expected secret names
+          SITE_URL_KEY="${NORMALIZED}_SITE_URL"
+          API_KEY_KEY="${NORMALIZED}_API_KEY"
+          echo "Looking for secrets: $SITE_URL_KEY, $API_KEY_KEY"
+          
+          # Extract secrets using jq
+          SITE_URL=$(echo "$ALL_SECRETS" | jq -r --arg key "$SITE_URL_KEY" '.[$key] // empty')
+          API_KEY=$(echo "$ALL_SECRETS" | jq -r --arg key "$API_KEY_KEY" '.[$key] // empty')
+          
+          # Validate SITE_URL
+          if [[ -z "$SITE_URL" ]]; then
+            echo "::error::Missing required secret: $SITE_URL_KEY"
+            echo "::error::Please add '$SITE_URL_KEY' to your repository secrets (Settings → Secrets → Actions)"
+            exit 1
+          fi
+          
+          # Validate API_KEY
+          if [[ -z "$API_KEY" ]]; then
+            echo "::error::Missing required secret: $API_KEY_KEY"
+            echo "::error::Please add '$API_KEY_KEY' to your repository secrets (Settings → Secrets → Actions)"
+            exit 1
+          fi
+          
+          # Mask and output (masking prevents accidental exposure in logs)
+          echo "::add-mask::$SITE_URL"
+          echo "::add-mask::$API_KEY"
+          
+          echo "site_url=$SITE_URL" >> "$GITHUB_OUTPUT"
+          echo "api_key=$API_KEY" >> "$GITHUB_OUTPUT"
+          
+          echo "::notice::Successfully resolved secrets for branch '$TARGET_BRANCH'"
+
+      - name: Extract APP_SLUG from package.json
+        id: app_slug
+        run: |
+          set -e
+          
+          # Check if package.json exists
+          if [[ ! -f "package.json" ]]; then
+            echo "::error::package.json not found in repository root"
+            exit 1
+          fi
+          
+          # Extract app slug
+          APP_SLUG=$(node -p "require('./package.json').taruvi?.appSlug || ''")
+          
+          # Validate app slug is present
+          if [[ -z "$APP_SLUG" ]]; then
+            echo "::error::APP_SLUG not defined in package.json"
+            echo "::error::Please add the following to your package.json:"
+            echo "::error::  \"taruvi\": { \"appSlug\": \"your-app-slug\" }"
+            exit 1
+          fi
+          
+          echo "app_slug=$APP_SLUG" >> "$GITHUB_OUTPUT"
+          echo "::notice::APP_SLUG: $APP_SLUG"
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
           node-version: ${{ env.NODE_VERSION }}
 
-      - name: Extract APP_SLUG from package.json
-        id: app_slug
+      - name: Install dependencies
         run: |
-          APP_SLUG=$(node -p "require('./package.json').taruvi?.appSlug || ''")
-          if [[ -z "$APP_SLUG" ]]; then
-            echo "::error::APP_SLUG not defined in package.json. Add: \"taruvi\": { \"appSlug\": \"your-app-slug\" }"
+          set -e
+          echo "Installing dependencies..."
+          npm install
+          
+          if [[ $? -ne 0 ]]; then
+            echo "::error::Failed to install dependencies"
             exit 1
           fi
-          echo "app_slug=$APP_SLUG" >> "$GITHUB_OUTPUT"
-          echo "::notice::APP_SLUG: $APP_SLUG"
-
-      - name: Install dependencies
-        run: npm install
+          echo "::notice::Dependencies installed successfully"
 
       - name: Build application
-        run: npm run build
+        run: |
+          set -e
+          echo "Building application..."
+          npm run build
+          
+          if [[ $? -ne 0 ]]; then
+            echo "::error::Build failed"
+            exit 1
+          fi
+          echo "::notice::Build completed successfully"
         env:
           NODE_ENV: production
-          TARUVI_SITE_URL: ${{ secrets.SITE_URL }}
-          TARUVI_API_KEY: ${{ secrets.API_KEY }}
+          TARUVI_SITE_URL: ${{ steps.config.outputs.site_url }}
+          TARUVI_API_KEY: ${{ steps.config.outputs.api_key }}
           TARUVI_APP_SLUG: ${{ steps.app_slug.outputs.app_slug }}
 
       - name: Verify build output
         run: |
+          set -e
+          
           if [[ ! -d "dist" ]]; then
             echo "::error::Build output directory 'dist' not found"
+            echo "::error::The build may have failed or output to a different directory"
             exit 1
           fi
+          
+          FILE_COUNT=$(find dist -type f | wc -l)
+          if [[ "$FILE_COUNT" -eq 0 ]]; then
+            echo "::error::Build output directory 'dist' is empty"
+            exit 1
+          fi
+          
           echo "Build output size: $(du -sh dist | cut -f1)"
+          echo "Files in dist: $FILE_COUNT"
 
       - name: Create ZIP archive
         run: |
+          set -e
+          
           cd dist
           zip -r ../dist.zip .
           cd ..
-          echo "ZIP file size: $(du -sh dist.zip | cut -f1)"
+          
+          if [[ ! -f "dist.zip" ]]; then
+            echo "::error::Failed to create ZIP archive"
+            exit 1
+          fi
+          
+          ZIP_SIZE=$(du -sh dist.zip | cut -f1)
+          echo "ZIP file size: $ZIP_SIZE"
+          echo "::notice::Created dist.zip ($ZIP_SIZE)"
 
       - name: Deploy to Taruvi Frontend Worker
         run: |
+          set -e
+          
           APP_SLUG="${{ steps.app_slug.outputs.app_slug }}"
+          SITE_URL="${{ steps.config.outputs.site_url }}"
+          API_KEY="${{ steps.config.outputs.api_key }}"
+          TARGET_BRANCH="${{ steps.config.outputs.target_branch }}"
           
-          echo "Deploying to: ${{ secrets.SITE_URL }}"
+          echo "Deploying to: $SITE_URL"
           echo "Worker name: $APP_SLUG"
+          echo "Target branch: $TARGET_BRANCH"
           
+          # Make API request
           RESPONSE=$(curl -s -w "\n%{http_code}" \
-            -X POST "${{ secrets.SITE_URL }}/api/cloud/frontend_workers/" \
-            -H "Authorization: Api-Key ${{ secrets.API_KEY }}" \
+            -X POST "${SITE_URL}/api/cloud/frontend_workers/" \
+            -H "Authorization: Api-Key ${API_KEY}" \
             -F "file=@dist.zip;type=application/zip" \
-            -F "name=$APP_SLUG" \
-            -F "is_internal=true")
+            -F "name=${APP_SLUG}" \
+            -F "is_internal=true" \
+            --connect-timeout 30 \
+            --max-time 300)
           
+          # Check if curl failed
+          if [[ $? -ne 0 ]]; then
+            echo "::error::Failed to connect to Taruvi API at $SITE_URL"
+            echo "::error::Please verify the SITE_URL is correct and accessible"
+            exit 1
+          fi
+          
+          # Parse response
           HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
           BODY=$(echo "$RESPONSE" | sed '$d')
           
           echo "Response status: $HTTP_CODE"
           
+          # Handle different status codes
           if [[ "$HTTP_CODE" -ge 200 && "$HTTP_CODE" -lt 300 ]]; then
             echo "::notice::Deployment successful!"
             echo "$BODY"
+          elif [[ "$HTTP_CODE" -eq 401 ]]; then
+            echo "::error::Authentication failed (401 Unauthorized)"
+            echo "::error::Please verify your API_KEY is correct"
+            exit 1
+          elif [[ "$HTTP_CODE" -eq 403 ]]; then
+            echo "::error::Access denied (403 Forbidden)"
+            echo "::error::The API key may not have permission to deploy frontend workers"
+            exit 1
+          elif [[ "$HTTP_CODE" -eq 404 ]]; then
+            echo "::error::Endpoint not found (404)"
+            echo "::error::Please verify the SITE_URL is correct: $SITE_URL"
+            exit 1
+          elif [[ "$HTTP_CODE" -ge 500 ]]; then
+            echo "::error::Server error ($HTTP_CODE)"
+            echo "::error::The Taruvi server encountered an error. Please try again later."
+            echo "$BODY"
+            exit 1
           else
             echo "::error::Deployment failed with status $HTTP_CODE"
             echo "$BODY"
@@ -105,13 +244,28 @@ jobs:
       - name: Deployment Summary
         if: success()
         run: |
-          echo "## Deployment Summary" >> $GITHUB_STEP_SUMMARY
+          echo "## ✅ Deployment Successful" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "- **PR:** #${{ github.event.pull_request.number }}" >> $GITHUB_STEP_SUMMARY
-          echo "- **Branch:** ${{ github.event.pull_request.head.ref }} → main" >> $GITHUB_STEP_SUMMARY
-          echo "- **App Slug:** ${{ steps.app_slug.outputs.app_slug }}" >> $GITHUB_STEP_SUMMARY
+          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **PR** | #${{ github.event.pull_request.number }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Source Branch** | ${{ github.event.pull_request.head.ref }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Target Branch** | ${{ steps.config.outputs.target_branch }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **App Slug** | ${{ steps.app_slug.outputs.app_slug }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Commit** | ${{ github.event.pull_request.merge_commit_sha }} |" >> $GITHUB_STEP_SUMMARY
+
+      - name: Failure Summary
+        if: failure()
+        run: |
+          echo "## ❌ Deployment Failed" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "✅ Deployment completed successfully!" >> $GITHUB_STEP_SUMMARY
+          echo "| Property | Value |" >> $GITHUB_STEP_SUMMARY
+          echo "|----------|-------|" >> $GITHUB_STEP_SUMMARY
+          echo "| **PR** | #${{ github.event.pull_request.number }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Source Branch** | ${{ github.event.pull_request.head.ref }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Target Branch** | ${{ steps.config.outputs.target_branch }} |" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Check the workflow logs above for detailed error messages." >> $GITHUB_STEP_SUMMARY
 
       - name: Cleanup
         if: always()

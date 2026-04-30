@@ -234,15 +234,22 @@ jobs:
               exit 1
             fi
           else
-            # No default worker - Create new one
+            # No default worker - Create new one with branch suffix
             echo "No default frontend worker. Creating new worker..."
+            
+            # Normalize branch name for subdomain (lowercase, alphanumeric and hyphens only)
+            TARGET_BRANCH="${{ steps.config.outputs.target_branch }}"
+            BRANCH_SUFFIX=$(echo "$TARGET_BRANCH" | tr '[:upper:]' '[:lower:]' | sed 's/[^a-z0-9]/-/g' | sed 's/--*/-/g' | sed 's/^-//' | sed 's/-$//')
+            SUBDOMAIN="${APP_SLUG}-${BRANCH_SUFFIX}"
+            
+            echo "Subdomain: $SUBDOMAIN"
             
             RESPONSE=$(curl -s -w "\n%{http_code}" \
               -X POST "${SITE_URL}/api/cloud/frontend_workers/" \
               -H "Authorization: Api-Key ${API_KEY}" \
               -F "file=@dist.zip;type=application/zip" \
               -F "name=${APP_SLUG}" \
-              -F "subdomain_input=${APP_SLUG}" \
+              -F "subdomain_input=${SUBDOMAIN}" \
               -F "is_internal=true" \
               --connect-timeout 30 \
               --max-time 300) || CURL_EXIT=$?

@@ -179,6 +179,7 @@ jobs:
           echo "::notice::Created dist.zip ($ZIP_SIZE)"
 
       - name: Deploy to Taruvi Frontend Worker
+        id: deploy
         run: |
           APP_SLUG="${{ steps.app_slug.outputs.app_slug }}"
           SITE_URL="${{ steps.config.outputs.site_url }}"
@@ -186,62 +187,103 @@ jobs:
           TARGET_BRANCH="${{ steps.config.outputs.target_branch }}"
           
           echo "Deploying to: $SITE_URL"
-          echo "Worker name: $APP_SLUG"
+          echo "App slug: $APP_SLUG"
           echo "Target branch: $TARGET_BRANCH"
           
-          # Make API request (don't use set -e so we can capture curl exit code)
-          RESPONSE=$(curl -s -w "\n%{http_code}" \
-            -X POST "${SITE_URL}/api/cloud/frontend_workers/" \
+          # Step 1: Get default frontend worker slug from app settings
+          echo "Checking for default frontend worker..."
+          SETTINGS_RESPONSE=$(curl -s \
+            "${SITE_URL}/api/apps/${APP_SLUG}/settings/" \
             -H "Authorization: Api-Key ${API_KEY}" \
-            -F "file=@dist.zip;type=application/zip" \
-            -F "name=${APP_SLUG}" \
-            -F "is_internal=true" \
-            --connect-timeout 30 \
-            --max-time 300) || CURL_EXIT=$?
+            --connect-timeout 30) || true
           
-          # Check if curl failed
+          WORKER_SLUG=$(echo "$SETTINGS_RESPONSE" | jq -r '.data.default_frontend_worker_slug // empty')
+          
+          if [[ -n "$WORKER_SLUG" && "$WORKER_SLUG" != "null" ]]; then
+            # Step 2a: Worker exists - Update it
+            echo "Found existing worker: $WORKER_SLUG"
+            echo "Uploading new build..."
+            
+            RESPONSE=$(curl -s -w "\n%{http_code}" \
+              -X PATCH "${SITE_URL}/api/cloud/frontend_workers/${WORKER_SLUG}/" \
+              -H "Authorization: Api-Key ${API_KEY}" \
+              -F "file=@dist.zip;type=application/zip" \
+              --connect-timeout 30 \
+              --max-time 300) || CURL_EXIT=$?
+            
+            HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+            BODY=$(echo "$RESPONSE" | sed '$d')
+            
+            if [[ "$HTTP_CODE" -ge 200 && "$HTTP_CODE" -lt 300 ]]; then
+              # Get the new build UUID and set it as active
+              BUILD_UUID=$(echo "$BODY" | jq -r '.data.latest_build.uuid // empty')
+              
+              if [[ -n "$BUILD_UUID" && "$BUILD_UUID" != "null" ]]; then
+                echo "Setting build $BUILD_UUID as active..."
+                ACTIVATE_RESPONSE=$(curl -s -w "\n%{http_code}" \
+                  -X PATCH "${SITE_URL}/api/cloud/frontend_workers/${WORKER_SLUG}/set-active-build/" \
+                  -H "Authorization: Api-Key ${API_KEY}" \
+                  -H "Content-Type: application/json" \
+                  -d "{\"build_uuid\": \"${BUILD_UUID}\"}" \
+                  --connect-timeout 30) || true
+                
+                ACTIVATE_CODE=$(echo "$ACTIVATE_RESPONSE" | tail -n1)
+                if [[ "$ACTIVATE_CODE" -ge 200 && "$ACTIVATE_CODE" -lt 300 ]]; then
+                  echo "::notice::Build activated successfully!"
+                else
+                  echo "::warning::Failed to activate build, but upload succeeded"
+                fi
+              fi
+              
+              echo "::notice::Deployment successful! (updated existing worker)"
+              echo "$BODY"
+              echo "worker_slug=$WORKER_SLUG" >> "$GITHUB_OUTPUT"
+              echo "deploy_type=update" >> "$GITHUB_OUTPUT"
+            else
+              echo "::error::Failed to update worker (HTTP $HTTP_CODE)"
+              echo "$BODY"
+              exit 1
+            fi
+          else
+            # Step 2b: No worker - Create new one
+            echo "No default frontend worker found. Creating new worker..."
+            
+            RESPONSE=$(curl -s -w "\n%{http_code}" \
+              -X POST "${SITE_URL}/api/cloud/frontend_workers/" \
+              -H "Authorization: Api-Key ${API_KEY}" \
+              -F "file=@dist.zip;type=application/zip" \
+              -F "name=${APP_SLUG}" \
+              -F "subdomain_input=${APP_SLUG}" \
+              -F "is_internal=true" \
+              --connect-timeout 30 \
+              --max-time 300) || CURL_EXIT=$?
+            
+            HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+            BODY=$(echo "$RESPONSE" | sed '$d')
+            
+            if [[ "$HTTP_CODE" -ge 200 && "$HTTP_CODE" -lt 300 ]]; then
+              NEW_WORKER_SLUG=$(echo "$BODY" | jq -r '.data.slug // empty')
+              echo "::notice::Deployment successful! (created new worker: $NEW_WORKER_SLUG)"
+              echo "$BODY"
+              echo "worker_slug=$NEW_WORKER_SLUG" >> "$GITHUB_OUTPUT"
+              echo "deploy_type=create" >> "$GITHUB_OUTPUT"
+            else
+              echo "::error::Failed to create worker (HTTP $HTTP_CODE)"
+              echo "$BODY"
+              exit 1
+            fi
+          fi
+          
+          # Handle curl connection errors
           if [[ -n "$CURL_EXIT" && "$CURL_EXIT" -ne 0 ]]; then
             echo "::error::Failed to connect to Taruvi API (curl exit code: $CURL_EXIT)"
             case $CURL_EXIT in
               6)  echo "::error::Could not resolve host. Please verify SITE_URL is correct: $SITE_URL" ;;
-              7)  echo "::error::Failed to connect to server. Please verify the server is running and accessible." ;;
-              28) echo "::error::Connection timed out. The server may be slow or unreachable." ;;
-              35) echo "::error::SSL/TLS handshake failed. Check if the URL uses correct protocol (http/https)." ;;
-              *)  echo "::error::Please verify the SITE_URL is correct and accessible: $SITE_URL" ;;
+              7)  echo "::error::Failed to connect to server." ;;
+              28) echo "::error::Connection timed out." ;;
+              35) echo "::error::SSL/TLS handshake failed." ;;
+              *)  echo "::error::Please verify the SITE_URL is correct: $SITE_URL" ;;
             esac
-            exit 1
-          fi
-          
-          # Parse response
-          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
-          BODY=$(echo "$RESPONSE" | sed '$d')
-          
-          echo "Response status: $HTTP_CODE"
-          
-          # Handle different status codes
-          if [[ "$HTTP_CODE" -ge 200 && "$HTTP_CODE" -lt 300 ]]; then
-            echo "::notice::Deployment successful!"
-            echo "$BODY"
-          elif [[ "$HTTP_CODE" -eq 401 ]]; then
-            echo "::error::Authentication failed (401 Unauthorized)"
-            echo "::error::Please verify your API_KEY is correct"
-            exit 1
-          elif [[ "$HTTP_CODE" -eq 403 ]]; then
-            echo "::error::Access denied (403 Forbidden)"
-            echo "::error::The API key may not have permission to deploy frontend workers"
-            exit 1
-          elif [[ "$HTTP_CODE" -eq 404 ]]; then
-            echo "::error::Endpoint not found (404)"
-            echo "::error::Please verify the SITE_URL is correct: $SITE_URL"
-            exit 1
-          elif [[ "$HTTP_CODE" -ge 500 ]]; then
-            echo "::error::Server error ($HTTP_CODE)"
-            echo "::error::The Taruvi server encountered an error. Please try again later."
-            echo "$BODY"
-            exit 1
-          else
-            echo "::error::Deployment failed with status $HTTP_CODE"
-            echo "$BODY"
             exit 1
           fi
 
@@ -256,6 +298,8 @@ jobs:
           echo "| **Source Branch** | ${{ github.event.pull_request.head.ref }} |" >> $GITHUB_STEP_SUMMARY
           echo "| **Target Branch** | ${{ steps.config.outputs.target_branch }} |" >> $GITHUB_STEP_SUMMARY
           echo "| **App Slug** | ${{ steps.app_slug.outputs.app_slug }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Worker Slug** | ${{ steps.deploy.outputs.worker_slug }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Deploy Type** | ${{ steps.deploy.outputs.deploy_type }} |" >> $GITHUB_STEP_SUMMARY
           echo "| **Commit** | ${{ github.event.pull_request.merge_commit_sha }} |" >> $GITHUB_STEP_SUMMARY
 
       - name: Failure Summary

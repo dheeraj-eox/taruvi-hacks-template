@@ -1,0 +1,102 @@
+{
+  "created_at": "2026-05-04T12:34:07.910787+00:00",
+  "created_by": "admin",
+  "export_options": {
+    "include_analytics": true,
+    "include_app_roles": true,
+    "include_datatables": true,
+    "include_events": true,
+    "include_frontend_workers": false,
+    "include_functions": true,
+    "include_policies": true,
+    "include_secrets": true,
+    "include_storage": true,
+    "include_widgets": true
+  },
+  "format": "taruvi-app-package",
+  "integrity": {
+    "manifest_checksum": "sha256:64d43a34915c838583f764ca8f6f82cc51117b62642def33ddb1c79569320109",
+    "package_checksum": "sha256:44e0f6b0373943e4c1c0e6e531708e3b057634e4085da4d2bdb0a725dcac15d7"
+  },
+  "modules": {
+    "analytics": {
+      "count": 0,
+      "files": {
+        "metadata.json": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      }
+    },
+    "app": {
+      "count": 1,
+      "files": {
+        "metadata.json": "sha256:78d62bfba6051184ec363e34d21539be2f85db2624fcb220bc84e01c53adfc4a"
+      }
+    },
+    "app_roles": {
+      "count": 4,
+      "files": {
+        "metadata.json": "sha256:c167cb758e9433be1a1e7115e289ad8bdfa08a31875283ae80cfe88d129e81da"
+      }
+    },
+    "datatables": {
+      "count": 1,
+      "files": {
+        "metadata.json": "sha256:12a95641719d39d4a182cdbe3b99dbfefd592181887c47c6462feeb9451d6563"
+      }
+    },
+    "events": {
+      "count": 0,
+      "files": {
+        "metadata.json": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      }
+    },
+    "frontend_workers": {
+      "count": 0,
+      "files": {}
+    },
+    "functions": {
+      "count": 0,
+      "files": {
+        "metadata.json": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      }
+    },
+    "policies": {
+      "count": 4,
+      "files": {
+        "metadata.json": "sha256:fae1f89bc41833e53c05e6bf9831340433c03662491c780777bc5e0264420688"
+      }
+    },
+    "secrets": {
+      "count": 0,
+      "files": {
+        "metadata.json": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      }
+    },
+    "storage": {
+      "count": 0,
+      "files": {
+        "metadata.json": "sha256:093d6da0f2ab201ed4e9a356ed20b3ceca8515fd517a1b925d2f802041351759"
+      },
+      "total_files": 0,
+      "total_size_bytes": 0
+    },
+    "tags": {
+      "count": 0,
+      "files": {
+        "metadata.json": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      }
+    },
+    "widgets": {
+      "count": 0,
+      "files": {}
+    }
+  },
+  "package": {
+    "app_name": "dheeraj-app",
+    "app_slug": "dheeraj-app",
+    "description": ""
+  },
+  "requires": {
+    "taruvi_version": ">=1.0.0"
+  },
+  "version": "1.0.0"
+}

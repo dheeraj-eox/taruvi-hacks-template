@@ -1,0 +1,16 @@
+{
+  "name": "dheeraj-app",
+  "slug": "dheeraj-app",
+  "description": "",
+  "is_active": true,
+  "settings": {
+    "display_name": "dheeraj-app",
+    "primary_color": "#1976d2",
+    "secondary_color": "#dc004e",
+    "icon_background_color": "#ffffff",
+    "category": "analytics",
+    "documentation_url": "",
+    "support_email": "",
+    "default_frontend_worker_slug": "dheeraj-app"
+  }
+}

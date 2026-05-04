@@ -269,6 +269,67 @@ jobs:
             fi
           fi
 
+      - name: Import Backend Configuration
+        id: backend_import
+        run: |
+          SITE_URL="${{ steps.config.outputs.site_url }}"
+          API_KEY="${{ steps.config.outputs.api_key }}"
+          BACKEND_DIR=".taruvi-backend"
+          
+          # Check if backend directory exists
+          if [[ ! -d "$BACKEND_DIR" ]]; then
+            echo "::notice::No backend configuration found at '$BACKEND_DIR'. Skipping backend import."
+            echo "skipped=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          
+          # Check if directory is empty
+          if [[ -z "$(ls -A $BACKEND_DIR)" ]]; then
+            echo "::notice::Backend directory '$BACKEND_DIR' is empty. Skipping backend import."
+            echo "skipped=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          
+          echo "Found backend configuration at '$BACKEND_DIR'"
+          
+          # Create ZIP archive of backend config
+          cd "$BACKEND_DIR"
+          zip -r ../backend.zip .
+          cd ..
+          
+          if [[ ! -f "backend.zip" ]]; then
+            echo "::error::Failed to create backend ZIP archive"
+            exit 1
+          fi
+          
+          ZIP_SIZE=$(du -sh backend.zip | cut -f1)
+          echo "Backend ZIP size: $ZIP_SIZE"
+          
+          # Import backend configuration
+          echo "Importing backend configuration..."
+          RESPONSE=$(curl -s -w "\n%{http_code}" \
+            -X POST "${SITE_URL}/api/apps/imports/" \
+            -H "Authorization: Api-Key ${API_KEY}" \
+            -F "file=@backend.zip;type=application/zip" \
+            --connect-timeout 30 \
+            --max-time 300) || CURL_EXIT=$?
+          
+          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+          BODY=$(echo "$RESPONSE" | sed '$d')
+          
+          # Cleanup
+          rm -f backend.zip
+          
+          if [[ "$HTTP_CODE" -ge 200 && "$HTTP_CODE" -lt 300 ]]; then
+            echo "::notice::Backend import successful!"
+            echo "$BODY"
+            echo "skipped=false" >> "$GITHUB_OUTPUT"
+          else
+            echo "::error::Failed to import backend configuration (HTTP $HTTP_CODE)"
+            echo "$BODY"
+            exit 1
+          fi
+
       - name: Deployment Summary
         if: success()
         run: |
@@ -282,6 +343,7 @@ jobs:
           echo "| **App Slug** | ${{ steps.app_slug.outputs.app_slug }} |" >> $GITHUB_STEP_SUMMARY
           echo "| **Worker Slug** | ${{ steps.deploy.outputs.worker_slug }} |" >> $GITHUB_STEP_SUMMARY
           echo "| **Deploy Type** | ${{ steps.deploy.outputs.deploy_type }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Backend Import** | ${{ steps.backend_import.outputs.skipped == 'true' && 'Skipped' || 'Imported' }} |" >> $GITHUB_STEP_SUMMARY
           echo "| **Commit** | ${{ github.event.pull_request.merge_commit_sha }} |" >> $GITHUB_STEP_SUMMARY
 
       - name: Failure Summary

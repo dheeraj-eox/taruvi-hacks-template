@@ -23,6 +23,7 @@ const columns: GridColDef[] = [
   { field: "phone", headerName: "Phone", flex: 1, minWidth: 130 },
   { field: "department", headerName: "Department", flex: 1, minWidth: 130 },
   { field: "job_title", headerName: "Job Title", flex: 1, minWidth: 150 },
+  { field: "gender", headerName: "Gender", flex: 0.8, minWidth: 100 },
   { field: "country", headerName: "Country", flex: 1, minWidth: 120 },
 ];
 
@@ -41,7 +42,7 @@ export const PeopleList = () => {
     resource: "people",
     pagination: { pageSize: 10 },
     filters: { permanent: permanentFilter },
-    meta: { select: "id,first_name,last_name,email,phone,department,job_title,country" },
+    meta: { select: "id,first_name,last_name,email,phone,department,job_title,gender,country" },
   });
 
   const handleDeptChange = useCallback((e: SelectChangeEvent) => {

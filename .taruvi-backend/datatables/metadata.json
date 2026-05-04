@@ -1,0 +1,130 @@
+[
+  {
+    "name": "people",
+    "json_schema": {
+      "fields": [
+        {
+          "name": "id",
+          "type": "string",
+          "format": "uuid",
+          "constraints": {
+            "required": true
+          }
+        },
+        {
+          "name": "first_name",
+          "type": "string",
+          "constraints": {
+            "required": true,
+            "maxLength": 100
+          }
+        },
+        {
+          "name": "last_name",
+          "type": "string",
+          "constraints": {
+            "required": true,
+            "maxLength": 100
+          }
+        },
+        {
+          "name": "email",
+          "type": "string",
+          "constraints": {
+            "unique": true,
+            "required": true,
+            "maxLength": 254
+          }
+        },
+        {
+          "name": "phone",
+          "type": "string",
+          "constraints": {
+            "maxLength": 20
+          }
+        },
+        {
+          "name": "department",
+          "type": "string",
+          "constraints": {
+            "enum": [
+              "Engineering",
+              "Sales",
+              "Marketing",
+              "HR",
+              "Finance"
+            ],
+            "required": true
+          }
+        },
+        {
+          "name": "job_title",
+          "type": "string",
+          "constraints": {
+            "maxLength": 100
+          }
+        },
+        {
+          "name": "gender",
+          "type": "string",
+          "constraints": {
+            "enum": [
+              "Male",
+              "Female",
+              "Non-binary"
+            ]
+          }
+        },
+        {
+          "name": "owner_id",
+          "type": "string",
+          "format": "uuid",
+          "constraints": {
+            "required": true
+          }
+        },
+        {
+          "name": "country",
+          "type": "string",
+          "constraints": {
+            "maxLength": 100
+          }
+        }
+      ],
+      "indexes": [
+        {
+          "name": "idx_people_department",
+          "fields": [
+            "department"
+          ]
+        },
+        {
+          "name": "idx_people_owner",
+          "fields": [
+            "owner_id"
+          ]
+        }
+      ],
+      "primaryKey": [
+        "id"
+      ],
+      "foreignKeys": [
+        {
+          "fields": "owner_id",
+          "reference": {
+            "fields": "id",
+            "resource": "auth_user"
+          },
+          "x-actions": {
+            "onDelete": "NO ACTION"
+          }
+        }
+      ]
+    },
+    "provider_type": "flat_table",
+    "provider_config": {},
+    "schema_format": "frictionless",
+    "description": "",
+    "is_active": true
+  }
+]

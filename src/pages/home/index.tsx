@@ -1,7 +1,7 @@
 import { Box, Typography, Container, useTheme } from "@mui/material";
 import { keyframes } from "@mui/system";
 
-const fadeIn = keyframes` 
+const fadeIn = keyframes`
   from {
     opacity: 0;
     transform: translateY(20px);

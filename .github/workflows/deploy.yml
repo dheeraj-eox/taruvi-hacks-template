@@ -20,6 +20,10 @@ name: Deploy to Taruvi
 on:
   pull_request:
     types: [closed]
+    branches:
+      - main
+      - dev
+      - 'feature/**'
 
 env:
   NODE_VERSION: '20'
@@ -178,72 +182,16 @@ jobs:
           echo "ZIP file size: $ZIP_SIZE"
           echo "::notice::Created dist.zip ($ZIP_SIZE)"
 
-      - name: Deploy to Taruvi Frontend Worker
-        run: |
-          APP_SLUG="${{ steps.app_slug.outputs.app_slug }}"
-          SITE_URL="${{ steps.config.outputs.site_url }}"
-          API_KEY="${{ steps.config.outputs.api_key }}"
-          TARGET_BRANCH="${{ steps.config.outputs.target_branch }}"
-          
-          echo "Deploying to: $SITE_URL"
-          echo "Worker name: $APP_SLUG"
-          echo "Target branch: $TARGET_BRANCH"
-          
-          # Make API request (don't use set -e so we can capture curl exit code)
-          RESPONSE=$(curl -s -w "\n%{http_code}" \
-            -X POST "${SITE_URL}/api/cloud/frontend_workers/" \
-            -H "Authorization: Api-Key ${API_KEY}" \
-            -F "file=@dist.zip;type=application/zip" \
-            -F "name=${APP_SLUG}" \
-            -F "is_internal=true" \
-            --connect-timeout 30 \
-            --max-time 300) || CURL_EXIT=$?
-          
-          # Check if curl failed
-          if [[ -n "$CURL_EXIT" && "$CURL_EXIT" -ne 0 ]]; then
-            echo "::error::Failed to connect to Taruvi API (curl exit code: $CURL_EXIT)"
-            case $CURL_EXIT in
-              6)  echo "::error::Could not resolve host. Please verify SITE_URL is correct: $SITE_URL" ;;
-              7)  echo "::error::Failed to connect to server. Please verify the server is running and accessible." ;;
-              28) echo "::error::Connection timed out. The server may be slow or unreachable." ;;
-              35) echo "::error::SSL/TLS handshake failed. Check if the URL uses correct protocol (http/https)." ;;
-              *)  echo "::error::Please verify the SITE_URL is correct and accessible: $SITE_URL" ;;
-            esac
-            exit 1
-          fi
-          
-          # Parse response
-          HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
-          BODY=$(echo "$RESPONSE" | sed '$d')
-          
-          echo "Response status: $HTTP_CODE"
-          
-          # Handle different status codes
-          if [[ "$HTTP_CODE" -ge 200 && "$HTTP_CODE" -lt 300 ]]; then
-            echo "::notice::Deployment successful!"
-            echo "$BODY"
-          elif [[ "$HTTP_CODE" -eq 401 ]]; then
-            echo "::error::Authentication failed (401 Unauthorized)"
-            echo "::error::Please verify your API_KEY is correct"
-            exit 1
-          elif [[ "$HTTP_CODE" -eq 403 ]]; then
-            echo "::error::Access denied (403 Forbidden)"
-            echo "::error::The API key may not have permission to deploy frontend workers"
-            exit 1
-          elif [[ "$HTTP_CODE" -eq 404 ]]; then
-            echo "::error::Endpoint not found (404)"
-            echo "::error::Please verify the SITE_URL is correct: $SITE_URL"
-            exit 1
-          elif [[ "$HTTP_CODE" -ge 500 ]]; then
-            echo "::error::Server error ($HTTP_CODE)"
-            echo "::error::The Taruvi server encountered an error. Please try again later."
-            echo "$BODY"
-            exit 1
-          else
-            echo "::error::Deployment failed with status $HTTP_CODE"
-            echo "$BODY"
-            exit 1
-          fi
+      - name: Deploy to Taruvi
+        id: deploy
+        uses: Taruvi-ai/taruvi-action@v1
+        with:
+          site-url: ${{ steps.config.outputs.site_url }}
+          api-key: ${{ steps.config.outputs.api_key }}
+          app-slug: ${{ steps.app_slug.outputs.app_slug }}
+          frontend-zip-path: dist.zip
+          backend-dir: .taruvi-backend
+          branch-name: ${{ steps.config.outputs.target_branch }}
 
       - name: Deployment Summary
         if: success()
@@ -256,6 +204,10 @@ jobs:
           echo "| **Source Branch** | ${{ github.event.pull_request.head.ref }} |" >> $GITHUB_STEP_SUMMARY
           echo "| **Target Branch** | ${{ steps.config.outputs.target_branch }} |" >> $GITHUB_STEP_SUMMARY
           echo "| **App Slug** | ${{ steps.app_slug.outputs.app_slug }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Worker Slug** | ${{ steps.deploy.outputs.worker-slug }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Deploy Type** | ${{ steps.deploy.outputs.deploy-type }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Frontend URL** | ${{ steps.deploy.outputs.frontend-url }} |" >> $GITHUB_STEP_SUMMARY
+          echo "| **Backend Import** | ${{ steps.deploy.outputs.backend-imported }} |" >> $GITHUB_STEP_SUMMARY
           echo "| **Commit** | ${{ github.event.pull_request.merge_commit_sha }} |" >> $GITHUB_STEP_SUMMARY
 
       - name: Failure Summary

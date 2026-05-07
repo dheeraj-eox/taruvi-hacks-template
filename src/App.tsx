@@ -13,7 +13,7 @@ import Box from "@mui/material/Box";
 import CssBaseline from "@mui/material/CssBaseline";
 import GlobalStyles from "@mui/material/GlobalStyles";
 import routerProvider, { DocumentTitleHandler } from "@refinedev/react-router";
-import { BrowserRouter, Outlet, Route, Routes } from "react-router";
+import { BrowserRouter, Navigate, Outlet, Route, Routes } from "react-router";
 import { taruviClient } from "./taruviClient";
 import {
   taruviDataProvider,
@@ -23,14 +23,14 @@ import {
   taruviUserProvider,
   taruviAccessControlProvider,
 } from "./providers/refineProviders";
-import { ConsoleLogDrawer, CustomSider, ErrorBoundary, UnsavedChangesDialog } from "./components";
+import { CustomSider, ErrorBoundary, UnsavedChangesDialog } from "./components";
 import { LoginRedirect } from "./components/auth/LoginRedirect";
 import { ColorModeContextProvider, ColorModeContext } from "./contexts/color-mode";
 import {AppSettingsProvider, useAppSettings} from "./contexts/app-settings";
 import { useContext, useRef, useEffect } from "react";
 import { Home } from "./pages/home";
-import { PeopleList } from "./pages/people";
-import PeopleIcon from "@mui/icons-material/People";
+
+import { Login } from "./pages/login";
 
 const AppContent = () => {
   const { setMode } = useContext(ColorModeContext);
@@ -96,6 +96,18 @@ const AppContent = () => {
                   <Route
                     element={
                       <Authenticated
+                        key="login-route"
+                        fallback={<Outlet />}
+                      >
+                        <Navigate to="/" replace />
+                      </Authenticated>
+                    }
+                  >
+                    <Route path="/login" element={<Login />} />
+                  </Route>
+                  <Route
+                    element={
+                      <Authenticated
                         key="authenticated-inner"
                         fallback={<LoginRedirect />}
                       >
@@ -105,7 +117,6 @@ const AppContent = () => {
                               <Outlet />
                             </ErrorBoundary>
                           </Box>
-                          <ConsoleLogDrawer />
                         </ThemedLayout>
                       </Authenticated>
                     }

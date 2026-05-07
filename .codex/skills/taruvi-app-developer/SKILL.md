@@ -217,6 +217,7 @@ Include visible search and filter controls unless the user explicitly asks for a
 - **Package API** — use the installed package's current non-deprecated API surface. Do not copy deprecated patterns from existing code.
 - **Multi-module tasks** — load all relevant SKILL.md files before starting; don't guess from memory.
 - **Unclear project mode** — ask the user: "Is this a new app or does it already have Taruvi providers set up?"
+- **User routes** — for Taruvi user CRUD, single-user show/edit/delete flows must use the provider's documented lookup key (`username`), not an assumed opaque record ID.
 - **Test users** — if Cerbos policies or access control is configured, ALWAYS create test users for each role and report usernames + passwords. If NO access control, create one user with the default super admin role so the user can log in and test. Do not skip this.
 - **Verify functions** — after creating a function, execute it via MCP to test it works. If it fails, fix and re-execute until it succeeds. Then check the response format — the frontend must use the exact field names and structure returned. If they don't match, fix the frontend to align with the backend response.
 - **Verify analytics queries** — after creating an analytics query, execute it via MCP to test it works. If it fails, fix and re-execute until it succeeds. Then check the response format — the frontend must reference the exact fields returned. If they don't match, fix the frontend to align with the query response.

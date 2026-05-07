@@ -13,5 +13,10 @@
     "name": "Employee",
     "description": "Can view only their own records",
     "parent_name": "Super Admin"
+  },
+  {
+    "name": "Test",
+    "description": "",
+    "parent_name": "Super Admin"
   }
 ]

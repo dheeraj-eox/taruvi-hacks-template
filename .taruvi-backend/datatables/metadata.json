@@ -65,11 +65,29 @@
           }
         },
         {
+          "name": "gender",
+          "type": "string",
+          "constraints": {
+            "enum": [
+              "Male",
+              "Female",
+              "Non-binary"
+            ]
+          }
+        },
+        {
           "name": "owner_id",
           "type": "string",
           "format": "uuid",
           "constraints": {
             "required": true
+          }
+        },
+        {
+          "name": "country",
+          "type": "string",
+          "constraints": {
+            "maxLength": 100
           }
         }
       ],

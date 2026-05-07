@@ -85,5 +85,17 @@
         ]
       }
     ]
+  },
+  {
+    "policy_type": "role",
+    "name": "Test",
+    "rules": [
+      {
+        "resource": "*",
+        "allow_actions": [
+          "*"
+        ]
+      }
+    ]
   }
 ]

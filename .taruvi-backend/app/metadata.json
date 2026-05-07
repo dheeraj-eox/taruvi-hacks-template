@@ -11,6 +11,6 @@
     "category": "analytics",
     "documentation_url": "",
     "support_email": "",
-    "default_frontend_worker_slug": null
+    "default_frontend_worker_slug": "dheeraj-app"
   }
 }

@@ -20,6 +20,10 @@ name: Deploy to Taruvi
 on:
   pull_request:
     types: [closed]
+    branches:
+      - main
+      - dev
+      - 'feature/**'
 
 env:
   NODE_VERSION: '20'

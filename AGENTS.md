@@ -19,6 +19,8 @@ This is a **Refine.dev v5** project - a React-based framework for building admin
 
 **CRITICAL:** This project uses **Refine v5** which has significantly different hook syntax from v4. Always use the v5 patterns documented in the "[IMPORTANT: Refine v5 Syntax Changes](#important-refine-v5-syntax-changes)" section below.
 
+**CRITICAL:** Even if the user asks for plain HTML, CSS, or JavaScript — always use React, Refine v5 hooks, MUI components, and TypeScript. Do not build outside the framework.
+
 IMPORTANT: Always use Context7 MCP Skill when I need library/API, Refine v5, MUI documentation without me having to explicitly ask.
 
 **When confused or need clarification:** Use the Task tool with `subagent_type='Explore'` and set thoroughness to "medium" or "very thorough" to understand the codebase patterns before making changes.
@@ -54,6 +56,15 @@ For any task involving Taruvi, Refine + Taruvi, `@taruvi/sdk`, or `@taruvi/refin
 3. Follow its Step 4 to load all relevant module skills before writing any code.
 
 Do not implement from memory. Do not treat prior knowledge as sufficient. If these files are unavailable, stop and say so.
+
+### User Data Access Rule (Mandatory)
+- Taruvi platform already provides built-in user management (users, roles, auth).
+- Never create custom user/auth datatables (for example: `users`, `auth_users`, `user_roles`, `passwords`, `sessions`) to replace platform identity.
+- Never access `auth_user` through datatable routes from frontend code (for example `datatables/auth_user/data`).
+- Never use `resource: "auth_user"` in Refine hooks/components.
+- Always access users via the `user` provider (`dataProviderName: "user"`, with `resource: "users"`).
+- Manage users/roles through the dedicated user/app APIs and MCP tools (`list_users`, `create_user`, `update_user`, `manage_roles`, `manage_role_assignments`) — not manual SQL CRUD on identity data.
+- If user identity data is not available to the current role, degrade gracefully in UI (no crashing/spammy retries).
 
 ## IMPORTANT: Refine v5 Syntax Changes
 
@@ -188,6 +199,23 @@ const { result: category, query: { isLoading: categoryLoading } } = useOne({
 // blogPost and category are direct objects, no need for .data
 ```
 
+### Auth, Settings, and Input Safety
+
+- Taruvi auth is redirect-based. Keep `/login` wired to `LoginRedirect`; do not replace it with a local `AuthPage` form.
+- Keep protected Taruvi queries behind auth. App-wide settings/nav/theme fetches must skip protected API calls until a session token exists or live inside an authenticated route boundary.
+- For forms, normalize nullable API values before passing them to MUI inputs (`value={field.value ?? ""}`, boolean `checked`) to avoid uncontrolled/controlled warnings.
+
+### Stable Query Inputs
+
+When building lists, dashboards, or any data-driven page, keep query inputs stable across renders:
+
+- memoize `filters`, `sorters`, `meta`, and other query objects when they are derived in component scope
+- avoid inline `new Date()`, `Date.now()`, `Math.random()`, or freshly created arrays/objects inside hook arguments
+- if a cutoff time or default date range is needed, compute it once with `useMemo` or a top-level constant
+- if a query refetches repeatedly without user input, inspect the hook arguments first before blaming the provider
+
+This matters most for `useList`, `useDataGrid`, and `useMany`, because unstable arguments change the query key and can cause repeated datatable requests.
+
 ## Environment Configuration
 
 ```env
@@ -285,6 +313,8 @@ npm run refine       # Run Refine CLI
 15. **Use `dataProviderName`** - Specify which provider (storage, functions, app, user, analytics)
 16. **All 8 providers are configured** - See `/src/providers/refineProviders.ts`
 17. **Import types from refineProviders** - `import type { TaruviUser, TaruviMeta } from "./providers/refineProviders"`
+18. **Never query `auth_user` as a datatable** - Always use the `user` provider for user/role operations
+19. **Never build custom auth/user tables** - Use platform user management and role APIs instead of manual identity datatables
 
 This is a **Refine.dev v5 project** - leverage the framework's hooks and patterns rather than reinventing CRUD operations.
 

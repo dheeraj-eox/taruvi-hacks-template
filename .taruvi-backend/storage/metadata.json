@@ -1,0 +1,15 @@
+{
+  "export_timestamp": "2026-04-29_110033",
+  "site_slug": "test-build",
+  "app_slug": "dheeraj-app",
+  "bucket_filter": null,
+  "object_export_categories": [
+    "assets"
+  ],
+  "exported_by": "admin",
+  "total_buckets": 0,
+  "total_files": 0,
+  "total_size_bytes": 0,
+  "buckets_metadata": [],
+  "buckets": {}
+}

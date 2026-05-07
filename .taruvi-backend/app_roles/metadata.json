@@ -1,0 +1,17 @@
+[
+  {
+    "name": "Super Admin",
+    "description": "Super Admin role with full access to this app",
+    "parent_name": null
+  },
+  {
+    "name": "Admin",
+    "description": "Can view all people records",
+    "parent_name": "Super Admin"
+  },
+  {
+    "name": "Employee",
+    "description": "Can view only their own records",
+    "parent_name": "Super Admin"
+  }
+]

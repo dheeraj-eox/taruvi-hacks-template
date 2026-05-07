@@ -104,7 +104,7 @@ export const MenuItem: React.FC<MenuItemProps> = ({
   return (
     <CanAccess
       resource={getAclResource(item)}
-      action="read"
+      action="list"
       params={{ resource: item }}
     >
       {wrappedButton}

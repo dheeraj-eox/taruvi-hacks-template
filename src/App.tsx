@@ -21,7 +21,7 @@ import {
   taruviStorageProvider,
   taruviAppProvider,
   taruviUserProvider,
-  // taruviAccessControlProvider, // Uncomment to enable Cerbos-based access control
+  taruviAccessControlProvider,
 } from "./providers/refineProviders";
 import { CustomSider, ErrorBoundary, UnsavedChangesDialog } from "./components";
 import { LoginRedirect } from "./components/auth/LoginRedirect";
@@ -29,6 +29,7 @@ import { ColorModeContextProvider, ColorModeContext } from "./contexts/color-mod
 import {AppSettingsProvider, useAppSettings} from "./contexts/app-settings";
 import { useContext, useRef, useEffect } from "react";
 import { Home } from "./pages/home";
+
 import { Login } from "./pages/login";
 
 const AppContent = () => {
@@ -72,9 +73,18 @@ const AppContent = () => {
                 notificationProvider={useNotificationProvider}
                 routerProvider={routerProvider}
                 authProvider={taruviAuthProvider}
-                // accessControlProvider={taruviAccessControlProvider} // Uncomment to enable Cerbos-based access control
+                accessControlProvider={taruviAccessControlProvider}
                 resources={[
-                  // Add your resources here
+                  {
+                    name: "people",
+                    list: "/people",
+                    meta: {
+                      canDelete: false,
+                      label: "People",
+                      icon: <PeopleIcon />,
+                      aclResource: "datatable:people",
+                    },
+                  },
                 ]}
                 options={{
                   syncWithLocation: true,
@@ -112,6 +122,7 @@ const AppContent = () => {
                     }
                   >
                     <Route index element={<Home />} />
+                    <Route path="/people" element={<PeopleList />} />
                     <Route path="*" element={<ErrorComponent />} />
                   </Route>
                 </Routes>

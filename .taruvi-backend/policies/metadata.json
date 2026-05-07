@@ -1,0 +1,89 @@
+[
+  {
+    "policy_type": "resource",
+    "entity_type": "datatable",
+    "name": "people",
+    "rules": [
+      {
+        "actions": [
+          "*"
+        ],
+        "roles": [
+          "Admin"
+        ],
+        "effect": "EFFECT_ALLOW",
+        "derived_roles": [],
+        "name": ""
+      },
+      {
+        "actions": [
+          "list",
+          "create"
+        ],
+        "roles": [
+          "Employee"
+        ],
+        "effect": "EFFECT_ALLOW",
+        "derived_roles": [],
+        "name": ""
+      },
+      {
+        "actions": [
+          "read"
+        ],
+        "roles": [
+          "Employee"
+        ],
+        "condition": {
+          "match": {
+            "expr": "request.resource.attr.owner_id == request.principal.id"
+          }
+        },
+        "effect": "EFFECT_ALLOW",
+        "derived_roles": [],
+        "name": ""
+      },
+      {
+        "actions": [
+          "write",
+          "delete"
+        ],
+        "roles": [
+          "Employee"
+        ],
+        "condition": {
+          "match": {
+            "expr": "request.resource.attr.owner_id == request.principal.id"
+          }
+        },
+        "effect": "EFFECT_ALLOW",
+        "derived_roles": [],
+        "name": ""
+      }
+    ]
+  },
+  {
+    "policy_type": "role",
+    "name": "Admin",
+    "rules": [
+      {
+        "resource": "*",
+        "allow_actions": [
+          "*"
+        ]
+      }
+    ]
+  },
+  {
+    "policy_type": "role",
+    "name": "Employee",
+    "rules": [
+      {
+        "resource": "*",
+        "allow_actions": [
+          "*"
+        ]
+      }
+    ]
+  }
+]

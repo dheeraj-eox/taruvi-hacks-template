@@ -1,5 +1,8 @@
 {
   "name": "taruvi-refine-template",
+  "taruvi": {
+    "appSlug": "dheeraj-app"
+  },
   "version": "0.1.0",
   "private": true,
   "type": "module",

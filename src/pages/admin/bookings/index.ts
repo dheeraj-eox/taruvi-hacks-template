@@ -1,0 +1,1 @@
+export { AdminBookingList } from "./list";

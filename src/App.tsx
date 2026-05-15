@@ -134,7 +134,23 @@ function App() {
         <ColorModeContextProvider>
           <AppSettingsProvider>
             <CssBaseline />
-            <GlobalStyles styles={{ html: { WebkitFontSmoothing: "auto" } }} />
+            <GlobalStyles
+              styles={{
+                html: { WebkitFontSmoothing: 'antialiased' },
+                body: { fontFamily: "'Open Sans', sans-serif" },
+                'h1, h2, h3, h4, h5, h6': { fontFamily: "'Quicksand', sans-serif" },
+                '*::-webkit-scrollbar': { width: 8, height: 8 },
+                '*::-webkit-scrollbar-track': { background: 'transparent' },
+                '*::-webkit-scrollbar-thumb': {
+                  background: 'rgba(0,0,0,0.18)',
+                  borderRadius: 8,
+                },
+                '*::-webkit-scrollbar-thumb:hover': { background: 'rgba(0,0,0,0.32)' },
+                '[data-theme="dark"] *::-webkit-scrollbar-thumb': {
+                  background: 'rgba(255,255,255,0.18)',
+                },
+              }}
+            />
             <AppContent />
           </AppSettingsProvider>
         </ColorModeContextProvider>

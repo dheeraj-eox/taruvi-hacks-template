@@ -1,226 +1,125 @@
 ---
 name: taruvi-app-developer
 description: >
-  Use this skill when the user wants to build, add features to, debug, or
-  deploy a web application that uses Taruvi as its backend — including CRUD
-  pages, dashboards, file uploads, serverless functions, auth, or access
-  control. Activate on any app-building request when the project contains
-  @taruvi/sdk, @taruvi/refine-providers, TARUVI_API_KEY, sdk_client, or
-  taruvi.cloud in its files. Also activate when the user mentions Taruvi,
-  Refine providers, dataProvider, storageDataProvider, appDataProvider,
-  userDataProvider, or sdk_client. Always read this skill first before
-  loading any other Taruvi skill.
+  Use this skill for any backend work on a Taruvi app — provisioning datatables
+  with Frictionless schemas, writing Cerbos policies, managing roles and users,
+  registering and editing serverless functions, creating analytics queries,
+  managing buckets, secrets, tags, or running audited raw SQL via the Taruvi
+  MCP server. Also use when authoring Python function bodies that run inside
+  the Taruvi function runtime (`def main(params, user_data, sdk_client)`),
+  including multi-resource cascades, event/cron handlers, public webhooks, and
+  external API calls with stored secrets. Activate on phrases like "create a
+  datatable", "Frictionless schema", "Cerbos policy", "manage_policies",
+  "provision Taruvi", "upsert rows", "manage_function", "execute_function",
+  "serverless function", "scheduled job", "function trigger",
+  "create_update_schema", "execute_raw_sql", "analytics query", "sdk_client",
+  or whenever the user is working with Python code that imports nothing
+  browser-specific and references the Taruvi runtime. Skip when the work is
+  purely Refine frontend wiring (use `taruvi-refine-providers` instead).
+license: Apache-2.0
+compatibility: >
+  Requires the Taruvi MCP server for provisioning tasks (tools prefixed
+  `Taruvi:`). Python function bodies run inside the Taruvi function runtime
+  (Celery workers) with an injected, pre-authenticated `sdk_client`.
 metadata:
-  author: taruvi-ai
-  version: "1.0.0"
+  author: EOX Vantage
+  version: "2.0.0"
+  organization: Taruvi
 ---
 
-## Overview
+# Taruvi app developer (backend)
 
-Entry-point orchestrator for all Taruvi app development. This skill detects the project context, decides whether a serverless function is needed, and routes to the right module skill before any code is written.
+Single backend skill for Taruvi. Covers two layers:
 
-Default delivery standard: **always build a production-ready, production-scale app.** Not a demo, not an MVP, not a prototype. Every feature must be wired to real backend data, use proper error handling, and be built to handle real-world usage. The user must explicitly ask for a reduced scope if they want anything less.
+- **Control plane (MCP)** — provisioning datatables, policies, roles, buckets, secrets, function metadata, analytics queries, audited raw SQL.
+- **Data plane (function runtime)** — Python bodies with signature `def main(params, user_data, sdk_client)` running on Celery workers with a pre-authenticated `sdk_client`.
 
-## ⚠️ Skill Compliance — Non-Negotiable
+If the task is wiring React/Refine providers or hooks on the frontend, switch to `taruvi-refine-providers`.
 
-**These skills are the single source of truth for all Taruvi implementation decisions.** They override existing project code, template patterns, training data, and personal shortcuts.
+## Decision: function or just MCP provisioning?
 
-Rules:
+Provisioning alone is enough for: schema changes, policy/role/user management, bucket creation, secret management, registering analytics queries, one-shot admin SQL.
 
-1. **If a skill prescribes a specific way to implement something, use that way. No exceptions, no shortcuts, no "simpler" alternatives.**
-2. **Do not copy patterns from existing project code if they contradict the skills.** Existing code may be outdated, a prototype, or pre-skill. The skills define the correct pattern.
-3. **Do not skip steps to save time.** Every step in the skill instructions exists because skipping it causes real bugs or drift.
-4. **If you cannot implement a skill requirement** (missing credentials, missing MCP tool, unclear API), **stop and ask the user** instead of silently falling back to an easier approach.
-5. **After implementation, verify against the skill's checklist.** If any checklist item fails, fix it before presenting the work as done.
+You need a **function body** when the task involves any of:
 
-Common violations to avoid:
-- Using `useList` with `aggregate`/`groupBy` for dashboard elements that need data from 2+ tables (use analytics queries instead)
-- Omitting search bar and filter controls on list pages
-- Using static `Select` instead of debounced `Autocomplete` for backend-loaded options
-- Skipping `accessControlProvider` wiring without asking the user
-- Hardcoding demo data instead of wiring real backend queries
+- 2+ resources at runtime (DB + storage, users + DB, etc.)
+- Event triggers (`RECORD_CREATE`, `RECORD_UPDATE`, `RECORD_DELETE`, `POST_USER_CREATE`, …)
+- Schedule / cron
+- External API call with a stored secret
+- Long-running work (>30s → `async_mode=True`)
+- Public unauthenticated endpoint (`is_public=True`)
+- Authorization gate beyond plain Cerbos resource policy
+- Function-to-function pipeline
 
-## When to Use This Skill
+When in doubt, see [`when-not-to-use-functions.md`](references/when-not-to-use-functions.md).
 
-- Starting a new Taruvi-powered app from scratch
-- Adding a feature to an existing Taruvi app
-- Refactoring or enhancing provider/hook/function code
-- Debugging a broken query, upload flow, or function
-- Deploying a frontend worker
-- Any task that involves `@taruvi/sdk`, `@taruvi/refine-providers`, or `sdk_client`
+## Workflow
 
-## Step-by-Step Instructions
+1. Read [`architecture-overview.md`](references/architecture-overview.md) once for the runtime split; for greenfield apps also scaffold an `AGENTS.md` from [`agents-md-template.md`](references/agents-md-template.md).
+2. Decide function vs provisioning (above). Before writing function code, read [`function-authoring.md`](references/function-authoring.md) and the relevant section of [`function-sdk-reference.md`](references/function-sdk-reference.md).
+3. For MCP work, open [`mcp-tool-quickref.md`](references/mcp-tool-quickref.md) and the task-specific reference below.
+4. For destructive ops, follow the destructive-op protocol (below).
+5. Verify by re-reading the resource (`get_datatable_schema`, `manage_policies(action="get")`, etc.) and executing functions / analytics queries end-to-end before reporting done.
 
-### Step 1 — Detect Project Mode
+## Reference index
 
-Identify which mode applies before doing anything:
-
-| Mode | Signals |
+| Task | Read |
 |---|---|
-| **Greenfield** | No existing Taruvi code, scaffolding from scratch |
-| **Existing app** | Project has `@taruvi/sdk`, `.env` with `TARUVI_*` keys, or existing provider/function code |
+| MCP tool signatures | [`mcp-tool-quickref.md`](references/mcp-tool-quickref.md) |
+| Frictionless schema (FKs, indexes, hierarchy, graph) | [`datatable-schema-patterns.md`](references/datatable-schema-patterns.md) |
+| Cerbos policy authoring | [`cerbos-policy-cookbook.md`](references/cerbos-policy-cookbook.md) — or `get_ai_docs(category="policies", topic="guide")` |
+| Secrets and custom secret types | [`secrets-and-types.md`](references/secrets-and-types.md) |
+| Audited raw SQL | [`raw-sql-safety.md`](references/raw-sql-safety.md) |
+| Analytics queries (registration + Jinja2 params) | [`analytics-queries.md`](references/analytics-queries.md) |
+| Filter operators / query capabilities | [`backend-capabilities.md`](references/backend-capabilities.md) |
+| Function runtime contract, modes, triggers | [`function-authoring.md`](references/function-authoring.md) |
+| `sdk_client` modules and methods | [`function-sdk-reference.md`](references/function-sdk-reference.md) |
+| Event triggers, CEL filters | [`function-events.md`](references/function-events.md) |
+| Worked function examples (8 scenarios) | [`function-scenarios.md`](references/function-scenarios.md) |
+| Cross-layer worked features | [`feature-workflow-examples.md`](references/feature-workflow-examples.md) |
+| Integration pitfalls | [`integration-pitfalls.md`](references/integration-pitfalls.md) |
+| Frontend Worker deploy | [`frontend-worker-deploy.md`](references/frontend-worker-deploy.md), [`deployment.md`](references/deployment.md) |
+| Env var setup | [`env-setup.md`](references/env-setup.md) |
 
-For existing apps — read the relevant existing files first. Understand what is already built before proposing changes.
+## Non-negotiables
 
-### Step 2 — Read Foundation Reference
+Most of these are wired into the references too — listed here because skipping them causes real bugs.
 
-Open and read `references/runtime-and-packages.md` before writing any code.
+1. **Trust the MCP tool, not memory.** Tool responses carry the IDs/slugs/status you need next. Don't invent endpoints or method names.
+2. **`create_update_schema` drops fields missing from the payload.** Always `get_datatable_schema` first, then send the full preserved field list.
+3. **`manage_policies(action="create_update")` replaces — does not merge.** Get the existing policy first, mutate, and send the full body back.
+4. **Function signature is exactly `def main(params, user_data, sdk_client):`.** Any deviation → immediate `SandboxError`.
+5. **Never re-authenticate `sdk_client`.** It's pre-authenticated. No `client.auth()`, no `client.login()`, no API keys passed in.
+6. **Never hardcode secrets.** Use `sdk_client.secrets.get("KEY")`.
+7. **Return JSON-serializable values from functions.** `datetime`, `set`, `Decimal`, and custom classes crash on return — convert first.
+8. **Tasks >30s need `is_async=True`.** Sync calls time out at 30s and leave UI spinners stuck.
+9. **Use `log()`, not `print()`.** `print()` is unstructured stdout and not queryable.
+10. **Frontend multi-resource cascades are bugs.** Move them to a function — browser navigation mid-operation leaves the DB inconsistent.
 
-For deploy tasks, ask the user for their deploy target and workflow details.
+## Destructive-op protocol
 
-### Step 2.5 — Identify the Current Package API
+Applies to: `delete_datatable` (especially `force=True`), `manage_policies(action="create_update")` on an existing policy, `user_attributes_schema(action="update")`, `manage_secret_types(action="delete")`, `manage_function(action="delete")`, `manage_roles(action="delete")`, and any `execute_raw_sql` containing `DROP`, `TRUNCATE`, destructive `ALTER`, or `DELETE` without `WHERE`.
 
-Before writing code against Taruvi packages, identify the current non-deprecated API surface in the installed package for this repo.
+1. **Plan** — inspect current state (`get_datatable_schema`, `manage_policies(action="get")`, …) and state what will be deleted/replaced and what depends on it.
+2. **Validate** — surface the blast radius in plain language ("This will drop `orders` and 3 dependent FKs in `invoices`"). Get explicit user confirmation.
+3. **Execute** — only after confirmation. Report the tool's response verbatim.
 
-- Never introduce new usage of deprecated package APIs.
-- If old examples, README snippets, or existing code use deprecated providers or hooks, do not copy them into new work.
-- If the canonical path is unclear, resolve that before building the feature.
-- If the only apparent working path is deprecated, treat that as a provider/docs issue to fix before finalizing the app code.
+## Test users — always
 
-### Step 2.6 — Set Production-Ready Acceptance Baseline
+After provisioning, create test users so the user can verify the app works:
 
-Unless explicitly scoped down by the user, treat app tasks as production-ready deliverables:
+- **With access control:** one test user per role, named `qa_<role_slug>_<YYYYMMDD>` (e.g., `qa_warehouse_staff_20260422`), strong 12+ char password (mixed case + digit + symbol). Report all usernames and passwords back to the user.
+- **No access control:** one default super-admin test user, password reported.
+- **Include cleanup guidance:** deactivate/delete the `qa_*` users after validation, or rotate their passwords.
 
-- no hardcoded demo-only arrays for core workflows
-- real backend wiring for CRUD/list/detail flows
-- backend-driven pagination/sort/filter for list pages
-- list-page UX includes visible search and relevant filter controls
-- dashboards show live data from real backend queries, automatically calculated from the system's data and kept up to date — never hardcoded or demo values
-- error and success paths are surfaced through the app notification provider
-- required empty/loading/error states are present for key screens
+## Verify by executing — always
 
-### Step 3 — Decide: Function or Provider?
+Before reporting a function or analytics query done:
 
-Answer this question before routing:
+1. Run `execute_function(function_slug=..., params={...})` or `execute_query(query_slug=..., params={...})` with realistic sample params.
+2. Inspect the actual response shape.
+3. Confirm any frontend code uses the exact field names and structure returned — fix the frontend if they don't match.
 
-**Does this task touch more than one resource?**
-(resources = database tables, storage buckets, users, secrets, analytics)
+## Drift check
 
-- **Yes** → a serverless function is required
-- **No** → use provider hooks directly
-
-Functions are required when the task involves:
-- 2+ resources (multi-resource create/update/delete/mix)
-- Backend logic beyond simple CRUD
-- Reacting to data or user lifecycle events
-- Scheduled / cron background jobs
-- Calling external APIs using stored secrets
-- Long-running tasks (>30s)
-- Public unauthenticated endpoints
-- Authorization-gated operations
-- Function-to-function pipelines
-
-For everything else — use provider hooks directly, no function needed.
-
-### Step 4 — Route to the Right Module
-
-**You MUST open and read the `SKILL.md` for every relevant module before writing any code.** Do not proceed to implementation until all applicable skills are loaded. Use your file search tool to locate each one.
-
-| If the task involves… | You MUST load |
-|---|---|
-| Any frontend page, hook, or provider code | `taruvi-refine-providers` |
-| List pages, detail views, filtered tables | `taruvi-database` |
-| Dashboards, KPI cards, charts, summaries | `taruvi-database` |
-| File upload, download, storage, attachments | `taruvi-storage` |
-| Multi-resource operations, backend logic, events, cron | `taruvi-functions` |
-
-**Most app-building tasks require 2+ skills.** For example:
-- "Build an employee list page" → `taruvi-refine-providers` + `taruvi-database`
-- "Add file upload to onboarding" → `taruvi-refine-providers` + `taruvi-storage` + `taruvi-functions` (multi-resource)
-- "Build a dashboard" → `taruvi-refine-providers` + `taruvi-database`
-- "Build a full CRUD feature" → `taruvi-refine-providers` + `taruvi-database` (+ `taruvi-storage` if files, + `taruvi-functions` if multi-resource)
-
-Find and read the `SKILL.md` for each required skill. Do not hardcode a path — use your file search tool to locate it.
-
-### Step 5 — Choose Dashboard Query Strategy
-
-If the task includes a dashboard, KPI cards, charts, or summary metrics:
-
-- **Single-table aggregates** → use datatable provider with `useList` + `meta.aggregate`/`groupBy`. This is the default for most dashboards.
-- **Multi-table visualizations** → use saved analytics queries via `appDataProvider` + `useCustom` with `meta.kind: "analytics"`. This is required when a dashboard element (card, chart, metric, or any visual) needs to combine data from 2+ tables to render.
-- **Row query + derive in React** is never allowed for summary metrics. Always push aggregation to the server.
-
-**Before writing any dashboard query, check:** does this metric/chart need data from more than one table? For example, "revenue by department" needs orders + departments — that's 2 tables, so use analytics. "Orders by status" only needs the orders table — use datatable aggregate.
-
-### Step 6 — Default List Views to Backend-Driven Queries
-
-For any backend-backed list or table page, the default implementation must be backend-driven:
-
-- backend pagination is required by default
-- default list `pageSize` is `10`; recommend exposing `10`, `20`, `50`, and `100` as user-selectable options
-- search, filters, and sorting must be server-side by default
-- any backend-driven list search input must use 300–500ms debounce before updating provider filters
-- use a single primary search control per list page — if DataGrid quick filter is enabled, do not also add a separate page-level search for the same fields
-- provide visible list controls for search and common filters by default (for example: status, department, date range, active/inactive)
-- when the list is rendered with MUI `DataGrid`, default to Refine `useDataGrid`
-- client-side filtering or search is only allowed if the user explicitly asks for it or the list is intentionally local-only
-- do not fetch one page of backend rows and then apply the primary list filtering logic in React
-- if a backend-backed MUI `DataGrid` list is not using `useDataGrid`, document the reason explicitly
-- if the current schema or query path cannot support the needed server-side list behavior, fix the backend/query path before calling the feature done
-- if search/filter controls are omitted, document the explicit user instruction or concrete reason
-
-### Step 7 — Default Network-Backed Dropdowns to Autocomplete
-
-For any dropdown whose options come from network calls:
-
-- use `Autocomplete` (or equivalent typeahead), not a static `Select`
-- query options from the backend with pagination (default option `pageSize` `10`)
-- debounce input before sending search requests
-- send the current search term as server-side filters, not client-side filtering over previously fetched options
-- if the field cannot support server-side search + pagination, treat that as a query/schema gap and fix it before calling the feature done
-
-### Step 8 — Enforce Access-Control Contract
-
-For permission checks in app code:
-
-- use only the published non-deprecated SDK/provider contract with prefixed ACL resource strings
-- `useCan`/`CanAccess` resources must be in prefixed form (for example `datatable:employees`, `function:employee-terminate`, `query:hrms-dashboard-summary`)
-- do not rely on `params.entityType` for access-control checks
-- verify runtime payloads in browser network logs: each `check/resources` `resource.kind` must exactly match the requested `resource` string
-- when SDK/provider ACL contract changes, app code must be updated in the same release cycle and versioned accordingly
-- after wiring access control, verify every role's UI path: check that list actions (edit/delete/show buttons), create buttons, and menu items are correctly shown or hidden for each role. Do not mark access control as done until this is verified.
-
-### Step 9 — Default Bulk Actions to Backend Bulk Operations
-
-For bulk update/delete/status-change flows:
-
-- execute bulk changes through backend bulk operations by default (`updateMany`, `deleteMany`, or a batch serverless function)
-- define and show selection scope clearly (selected rows vs filtered result set)
-- return and display partial-failure details per record when applicable
-- invalidate/refetch affected list and related summary queries after completion
-
-### Step 10 — Use Refine Notification Provider
-
-For user-facing success/error feedback:
-
-- use the app's existing Refine notification integration (`notificationProvider`) by default
-- do not introduce custom toast/snackbar systems when Refine notification provider is available
-
-## Examples
-
-**Greenfield:** User says "build me an employee directory". Read references, wire `dataProvider` and `userDataProvider`, scaffold list/detail pages with Refine hooks. No function needed (single-resource CRUD).
-
-**Existing app refactor:** User says "the cascade delete is broken". Read existing delete handler first, detect multi-resource pattern (tasks + attachments + activities), route to `taruvi-functions/SKILL.md` and rewrite as a serverless function.
-
-**Deploy task:** User says "deploy the frontend". Ask for their deploy target and follow their project's build and deploy workflow.
-
-**List + feedback baseline:** For backend-backed list pages, use `useDataGrid` (`pageSize: 10`) and surface success/error via Refine `notificationProvider` (`useNotification`) rather than custom toasts.
-Include visible search and filter controls unless the user explicitly asks for a minimal list.
-
-## Rules (always apply)
-
-- **Dashboards** — single-table metrics use datatable `aggregate`/`groupBy`. When a dashboard element needs data from 2+ tables, use saved analytics queries. Never fetch full row sets into React to derive summary metrics.
-- **Functions** — use a serverless function whenever there is any cross-resource side effect, even if it seems minor.
-- **Lists** — backend pagination, server-side search/filter/sort, visible search + filter controls, `useDataGrid` for MUI DataGrid. No exceptions unless the user explicitly asks.
-- **Dropdowns** — debounced server-side `Autocomplete` with pagination. No static `Select` with one-shot loads.
-- **Deprecated providers** — flag `functionsDataProvider`/`analyticsDataProvider` as deprecated; migrate to `appDataProvider + useCustom`.
-- **Package API** — use the installed package's current non-deprecated API surface. Do not copy deprecated patterns from existing code.
-- **Multi-module tasks** — load all relevant SKILL.md files before starting; don't guess from memory.
-- **Unclear project mode** — ask the user: "Is this a new app or does it already have Taruvi providers set up?"
-- **Test users** — if Cerbos policies or access control is configured, ALWAYS create test users for each role and report usernames + passwords. If NO access control, create one user with the default super admin role so the user can log in and test. Do not skip this.
-- **Verify functions** — after creating a function, execute it via MCP to test it works. If it fails, fix and re-execute until it succeeds. Then check the response format — the frontend must use the exact field names and structure returned. If they don't match, fix the frontend to align with the backend response.
-- **Verify analytics queries** — after creating an analytics query, execute it via MCP to test it works. If it fails, fix and re-execute until it succeeds. Then check the response format — the frontend must reference the exact fields returned. If they don't match, fix the frontend to align with the query response.
-
-## References
-
-- `references/runtime-and-packages.md` — mandatory runtime split, package list, query strategy
+`bash scripts/check-versions.sh` warns when pinned SDK/provider versions drift from the latest on PyPI/npm.

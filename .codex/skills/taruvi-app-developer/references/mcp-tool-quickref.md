@@ -7,11 +7,14 @@ Every Taruvi MCP tool with its signature, purpose, and key gotcha. Read this bef
 ### `get_datatable_schema(table_name=None)`
 Get schema for one table (by `table_name`) or list all if omitted. Non-destructive. Always call this before `create_update_schema` on an existing table.
 
-### `create_update_schema(datapackage: dict)`
-Upsert tables from a Frictionless Data Package. **Missing fields are dropped**, not preserved. Materializes physical tables automatically. Returns `{created_count, updated_count, error_count, errors}`.
+### `create_update_schema(datapackage: dict, allow_data_loss=False)`
+Upsert tables from a Frictionless Data Package. **Missing fields are dropped**, not preserved. Materializes physical tables automatically. Pass `allow_data_loss=True` for destructive changes (narrowing types, incompatible casts, adding NOT NULL without a default, dropping NOT NULL). Every operation is recorded with a `revision_id` and an auto-generated `rollback_sql`; a rollback is available via the REST endpoint `POST /api/apps/{slug}/datatables/{table}/rollback/`. DDL has a ~30s server-side timeout — split large refactors. Returns `{created_count, updated_count, error_count, errors}`. See [`datatable-schema-patterns.md`](datatable-schema-patterns.md) for safe-vs-destructive classification.
 
 ### `datatable_data(action, table_name, ...)`
 - `action="query"` → args: `filters` dict, `sort_by`, `order`, `limit` (default 100, cap 1000), `offset`, `populate`. Returns rows + pagination.
+  - `filters` keys use `field__operator` (e.g. `total__gte`, `status__in`, `metadata__color`).
+  - Related-field traversal via dot notation: `deal_id.name__contains`, `activities.subject__contains`. Max 3 hops, 5 distinct paths; not combinable with aggregation. See [`backend-capabilities.md`](backend-capabilities.md) for the full operator set.
+  - Aggregation is **not** available through this tool — use `manage_query` (analytics) or `execute_raw_sql`.
 - `action="upsert"` → args: `data` (dict or list), `unique_fields` (comma-sep conflict keys), `validate=True`, `partial=False`.
 - `action="delete"` → args: `ids` (scalar or list) **xor** `filters`. Exactly one of the two.
 

@@ -2,239 +2,33 @@
 
 The full shape of the `datapackage` argument to `create_update_schema`. Taruvi follows [Frictionless Data Package](https://specs.frictionlessdata.io/data-package/) plus several Taruvi-specific extensions.
 
-This doc is built around **one annotated example** that exercises every pattern. Each pattern below the example is a deeper reference. Use the example as a copy-paste starting point and jump to a section when you need the rules.
+Source of truth: <https://test-docs.taruvi.cloud/docs/data-service/guides/migrations> (schema evolution), `/hierarchy`, `/graph-traversal`, `/relationships`, `/imports`.
 
----
+## Minimal shape
 
-## The annotated example
-
-A simple project-management schema with five tables. The `// →` arrows are inline pointers to the explanation sections — the JSON itself is valid if you strip them (the block is rendered as JSONC).
-
-```jsonc
+```json
 {
   "resources": [
-    // ── 1) categories — self-referencing hierarchy + unique-expression index
     {
-      "name": "categories",                            // → §1 Resources & primary keys
-      "schema": {
-        "fields": [
-          {"name": "id", "type": "string", "format": "uuid", "constraints": {"required": true}},     // → §2 Field types · §3 Constraints
-          {"name": "parent_id", "type": "string", "format": "uuid"},                                  // → §4 Foreign keys
-          {"name": "name", "type": "string", "constraints": {"required": true, "maxLength": 100, "unique": true}},
-          {"name": "slug", "type": "string", "constraints": {"required": true, "maxLength": 100, "pattern": "^[a-z0-9-]+$"}},
-          {"name": "metadata", "type": "object"},                                                     // → §2 JSONB
-          {"name": "created_at", "type": "datetime", "constraints": {"required": true}}
-        ],
-        "primaryKey": ["id"],                                                                          // → §1
-        "foreignKeys": [                                                                               // → §4
-          {
-            "fields": ["parent_id"],
-            "reference": {"resource": "categories", "fields": ["id"]},
-            "x-actions": {"onDelete": "SET NULL"}                                                      // → §4.1 Delete actions
-          }
-        ],
-        "indexes": [
-          {"name": "idx_categories_slug", "expression": "LOWER(slug)", "unique": true}                 // → §5 Indexes (expression + unique)
-        ],
-        "hierarchy": {"enabled": true, "self_reference": "parent_id"}                                  // → §7 Hierarchy
-      }
-    },
-
-    // ── 2) projects — owner is auth_user, mixed types, partial + GIN indexes, search
-    {
-      "name": "projects",
+      "name": "orders",
       "schema": {
         "fields": [
           {"name": "id", "type": "string", "format": "uuid", "constraints": {"required": true}},
-          {"name": "owner_id", "type": "string", "format": "uuid", "constraints": {"required": true}},
-          {"name": "category_id", "type": "string", "format": "uuid"},
-          {"name": "title", "type": "string", "constraints": {"required": true, "maxLength": 200}},
-          {"name": "description", "type": "string"},
-          {"name": "status", "type": "string", "constraints": {"required": true, "enum": ["active", "on_hold", "completed", "archived"]}},    // → §3 enum
-          {"name": "budget", "type": "number", "constraints": {"minimum": 0}},                          // → §3 minimum
-          {"name": "completion_pct", "type": "integer", "constraints": {"minimum": 0, "maximum": 100}}, // → §3 min/max
-          {"name": "settings", "type": "object"},
-          {"name": "is_public", "type": "boolean"},
-          {"name": "starts_on", "type": "date"},
-          {"name": "created_at", "type": "datetime", "constraints": {"required": true}}
+          {"name": "title", "type": "string", "constraints": {"maxLength": 255}},
+          {"name": "created_at", "type": "datetime"}
         ],
-        "primaryKey": ["id"],
-        "foreignKeys": [
-          {
-            "fields": ["owner_id"],
-            "reference": {"resource": "auth_user", "fields": ["id"]},                                  // → §4.2 System-table FKs
-            "x-actions": {"onDelete": "RESTRICT"}
-          },
-          {
-            "fields": ["category_id"],
-            "reference": {"resource": "categories", "fields": ["id"]},
-            "x-actions": {"onDelete": "SET NULL"}
-          }
-        ],
-        "indexes": [
-          {"name": "idx_projects_owner_status", "fields": ["owner_id", "status"]},                     // → §5 Composite btree
-          {"name": "idx_projects_settings", "fields": ["settings"], "type": "gin"},                    // → §5 GIN on JSONB
-          {"name": "idx_projects_active_recent", "fields": ["created_at"], "where": "status = 'active'"} // → §5 Partial index
-        ],
-        "search_fields": [                                                                              // → §6 Search fields
-          {"field": "title", "weight": "A"},
-          {"field": "description", "weight": "C"}
-        ]
-      }
-    },
-
-    // ── 3) project_members — composite primary key + multiple FKs
-    {
-      "name": "project_members",
-      "schema": {
-        "fields": [
-          {"name": "project_id", "type": "string", "format": "uuid", "constraints": {"required": true}},
-          {"name": "user_id", "type": "string", "format": "uuid", "constraints": {"required": true}},
-          {"name": "role", "type": "string", "constraints": {"required": true, "enum": ["owner", "editor", "viewer"]}},
-          {"name": "joined_at", "type": "datetime", "constraints": {"required": true}}
-        ],
-        "primaryKey": ["project_id", "user_id"],                                                        // → §1 Composite PK
-        "foreignKeys": [
-          {
-            "fields": ["project_id"],
-            "reference": {"resource": "projects", "fields": ["id"]},
-            "x-actions": {"onDelete": "CASCADE"}                                                        // → §4.1
-          },
-          {
-            "fields": ["user_id"],
-            "reference": {"resource": "auth_user", "fields": ["id"]},
-            "x-actions": {"onDelete": "CASCADE"}
-          }
-        ]
-      }
-    },
-
-    // ── 4) tasks — array + JSONB fields, graph with inverse + typed edge metadata
-    {
-      "name": "tasks",
-      "schema": {
-        "fields": [
-          {"name": "id", "type": "string", "format": "uuid", "constraints": {"required": true}},
-          {"name": "project_id", "type": "string", "format": "uuid", "constraints": {"required": true}},
-          {"name": "assignee_id", "type": "string", "format": "uuid"},
-          {"name": "title", "type": "string", "constraints": {"required": true, "maxLength": 200}},
-          {"name": "details", "type": "string"},
-          {"name": "status", "type": "string", "constraints": {"required": true, "enum": ["todo", "in_progress", "review", "done"]}},
-          {"name": "priority", "type": "string", "constraints": {"enum": ["low", "medium", "high"]}},
-          {"name": "estimated_minutes", "type": "integer", "constraints": {"minimum": 0}},
-          {"name": "tags", "type": "array"},                                                            // → §2 JSONB array
-          {"name": "metadata", "type": "object"},
-          {"name": "due_at", "type": "datetime"},
-          {"name": "created_at", "type": "datetime", "constraints": {"required": true}}
-        ],
-        "primaryKey": ["id"],
-        "foreignKeys": [
-          {
-            "fields": ["project_id"],
-            "reference": {"resource": "projects", "fields": ["id"]},
-            "x-actions": {"onDelete": "CASCADE"}
-          },
-          {
-            "fields": ["assignee_id"],
-            "reference": {"resource": "auth_user", "fields": ["id"]},
-            "x-actions": {"onDelete": "SET NULL"}
-          }
-        ],
-        "indexes": [
-          {"name": "idx_tasks_project_status", "fields": ["project_id", "status"]},
-          {"name": "idx_tasks_metadata", "fields": ["metadata"], "type": "gin"}
-        ],
-        "search_fields": [
-          {"field": "title", "weight": "A"},
-          {"field": "details", "weight": "B"}
-        ],
-        "graph": {                                                                                      // → §8 Graph
-          "enabled": true,
-          "types": [
-            {"name": "blocks", "inverse": "blocked_by"},                                                // → §8.1 Inverse
-            {"name": "relates_to", "metadata": {"fields": [{"name": "linked_at", "type": "datetime"}]}} // → §8.1 Typed edge metadata
-          ]
-        }
-      }
-    },
-
-    // ── 5) task_attachments — FK to storage_objects (system table)
-    {
-      "name": "task_attachments",
-      "schema": {
-        "fields": [
-          {"name": "id", "type": "string", "format": "uuid", "constraints": {"required": true}},
-          {"name": "task_id", "type": "string", "format": "uuid", "constraints": {"required": true}},
-          {"name": "storage_object_id", "type": "string", "format": "uuid", "constraints": {"required": true}},
-          {"name": "uploaded_by", "type": "string", "format": "uuid", "constraints": {"required": true}},
-          {"name": "caption", "type": "string", "constraints": {"maxLength": 280}},
-          {"name": "uploaded_at", "type": "datetime", "constraints": {"required": true}}
-        ],
-        "primaryKey": ["id"],
-        "foreignKeys": [
-          {
-            "fields": ["task_id"],
-            "reference": {"resource": "tasks", "fields": ["id"]},
-            "x-actions": {"onDelete": "CASCADE"}
-          },
-          {
-            "fields": ["storage_object_id"],
-            "reference": {"resource": "storage_objects", "fields": ["id"]},                            // → §4.2 storage_objects FK
-            "x-actions": {"onDelete": "CASCADE"}
-          },
-          {
-            "fields": ["uploaded_by"],
-            "reference": {"resource": "auth_user", "fields": ["id"]},
-            "x-actions": {"onDelete": "RESTRICT"}
-          }
-        ]
+        "primaryKey": ["id"]
       }
     }
   ]
 }
 ```
 
-### What the example covers, at a glance
+**Prefer UUID IDs for new tables** (`"type": "string", "format": "uuid"`). Integer IDs work but UUIDs are the recommended default.
 
-| Pattern | Where in the example | Reference |
-|---|---|---|
-| Resources + primary keys (single & composite) | `categories`, `project_members` | [§1](#1-resources--primary-keys) |
-| Field types (string, integer, number, boolean, date, datetime, object/JSONB, array/JSONB) | spread across all five tables | [§2](#2-field-types) |
-| Constraints (`required`, `unique`, `maxLength`, `pattern`, `enum`, `minimum`/`maximum`) | `categories.name`, `categories.slug`, `projects.status`, `projects.budget`, `projects.completion_pct`, `task_attachments.caption` | [§3](#3-constraints) |
-| Foreign keys + delete actions (`CASCADE`, `SET NULL`, `RESTRICT`) | every table | [§4](#4-foreign-keys-foreignkeys) |
-| FK to system tables (`auth_user`, `storage_objects`) | `projects.owner_id`, `tasks.assignee_id`, `task_attachments.storage_object_id`, `task_attachments.uploaded_by`, `project_members.user_id` | [§4.2](#42-foreign-keys-to-system-tables) |
-| Self-referencing FK | `categories.parent_id` | [§4](#4-foreign-keys-foreignkeys) |
-| Indexes (composite btree, GIN on JSONB, partial, expression with `unique`) | `projects.indexes`, `categories.indexes`, `tasks.indexes` | [§5](#5-indexes-taruvi-extension-indexes) |
-| Search fields with weights | `projects.search_fields`, `tasks.search_fields` | [§6](#6-search-fields-taruvi-extension-search_fields) |
-| Hierarchy (closure table) | `categories.hierarchy` | [§7](#7-hierarchy-parentchild-closure) |
-| Graph with inverse and typed edge metadata | `tasks.graph` | [§8](#8-graph-many-to-many-with-edge-metadata) |
-| Multi-table call (5 resources in one `create_update_schema`) | top-level `resources` array | [§1](#1-resources--primary-keys) |
+One call can create or update many tables by adding more entries to `resources[]`.
 
-The two patterns that don't appear inline (because they are about **evolving** an existing schema, not creating one) are covered in [§9 Column rename](#9-column-rename-x-rename-from) and [§10 Populate](#10-populate-fk-auto-expansion-at-query-time).
-
----
-
-## §1 Resources & primary keys
-
-- A single `create_update_schema` call accepts many tables — add them to `resources[]`. Order them so referenced tables (FK targets) come before referencing tables, or submit dependent batches in separate calls.
-- Every table MUST declare a `primaryKey` (single field: `"primaryKey": ["id"]`; composite: `"primaryKey": ["project_id", "user_id"]`).
-- **Prefer UUID IDs** (`"type": "string", "format": "uuid"`) for new tables. Integer IDs work but UUIDs are the recommended default.
-
-Minimal valid table:
-
-```json
-{
-  "name": "orders",
-  "schema": {
-    "fields": [
-      {"name": "id", "type": "string", "format": "uuid", "constraints": {"required": true}}
-    ],
-    "primaryKey": ["id"]
-  }
-}
-```
-
-## §2 Field types
+## Field types
 
 | `type` | Postgres | Notes |
 |---|---|---|
@@ -247,36 +41,57 @@ Minimal valid table:
 | `object` | `JSONB` | arbitrary JSON object |
 | `array` | `JSONB` | arbitrary JSON array |
 
-## §3 Constraints
+## Field options
+
+Beyond `name` and `type`, fields can carry:
+
+- `format` — Frictionless format hint. Common values: `uuid`, `email`, `uri`, `date`, `datetime`. Drives type coercion and validation.
+- `default` — default value applied at insert time, e.g. `{"name": "status", "type": "string", "default": "active"}`. Required when adding a NOT NULL column to a populated table (see Schema evolution).
+- `constraints` — see below.
+
+## Constraints
 
 Per-field `constraints` object:
 
-| Constraint | Generates |
-|---|---|
-| `required: true` | `NOT NULL` |
-| `unique: true` | single-field `UNIQUE` index |
-| `maxLength: N` | `CHECK (length(field) <= N)` |
-| `minimum` / `maximum` | `CHECK (field >= …)` / `CHECK (field <= …)` |
-| `pattern: "regex"` | `CHECK (field ~ 'regex')` |
-| `enum: [...]` | `CHECK (field IN (...))` |
+- `required: true` → `NOT NULL`
+- `unique: true` → `UNIQUE` index
+- `maxLength: N` → `CHECK (length(field) <= N)`
+- `minimum` / `maximum` → `CHECK`
+- `pattern: "..."` → `CHECK` against regex
+- `enum: [...]` → `CHECK IN (...)`
 
-Compose freely: `{"required": true, "maxLength": 100, "pattern": "^[a-z0-9-]+$"}` is fine.
-
-## §4 Foreign keys (`foreignKeys`)
+## Foreign keys (`foreignKeys`)
 
 ```json
-"foreignKeys": [
-  {
-    "fields": ["order_id"],
-    "reference": {"resource": "orders", "fields": ["id"]},
-    "x-actions": {"onDelete": "CASCADE"}
+{
+  "name": "line_items",
+  "schema": {
+    "fields": [
+      {"name": "id", "type": "string", "format": "uuid"},
+      {"name": "order_id", "type": "string", "format": "uuid"}
+    ],
+    "primaryKey": ["id"],
+    "foreignKeys": [
+      {
+        "fields": ["order_id"],
+        "reference": {
+          "resource": "orders",
+          "fields": ["id"]
+        },
+        "x-actions": {"onDelete": "CASCADE"}
+      }
+    ]
   }
-]
+}
 ```
 
-FK targets must reference another table in the same datapackage or an already-materialized one. Self-references are allowed (see `categories.parent_id` in the example).
+FK references must point to a table in the same datapackage or an already-materialized one. If a multi-resource datapackage contains FKs across its own entries, order `resources[]` so referenced tables come first. There's no schema-level declaration for reverse / one-to-many / many-to-many — those are inferred from the child's FK at query time (`?activities.subject__contains=...`, `populate=activities`, etc.). For many-to-many, declare a junction table with two FKs. Only `onDelete` is documented under `x-actions`.
 
-### §4.1 Delete actions (`x-actions.onDelete`)
+Default `onDelete` when omitted: `RESTRICT`.
+
+### Referential delete actions (`x-actions.onDelete`)
+
+Control what happens when a referenced row is deleted:
 
 | Value | Behavior |
 |---|---|
@@ -286,53 +101,49 @@ FK targets must reference another table in the same datapackage or an already-ma
 | `SET DEFAULT` | Set FK column to its default (field must have a default) |
 | `NO ACTION` | Same as RESTRICT but checked at end of transaction |
 
-### §4.2 Foreign keys to system tables
+System resources `auth_user` and `storage_objects` (bucket file metadata) can be used as `reference.resource` targets — see Conventions below.
 
-You can FK directly to:
-
-- `auth_user` — platform identity. Use for `owner_id`, `assignee_id`, `created_by`, etc. Never create your own user table.
-- `storage_objects` — bucket file metadata. Use for attachment/upload references.
-
-Both behave like any other FK target (see `projects.owner_id` and `task_attachments.storage_object_id` in the example).
-
-## §5 Indexes (Taruvi extension: `indexes`)
-
-Index entries support:
-
-- `name` (required) — index name.
-- `fields` or `expression` (exactly one required).
-- `type` / `method` — `btree` (default), `hash`, `gin`, `gist`, `brin`. **GIN is required for JSONB search.**
-- `unique` — single- or multi-field uniqueness; allowed on `expression` too.
-- `where` — partial-index predicate.
-- `using`, `comment` — passthrough.
-
-Examples (all four pulled directly from the annotated schema):
+## Indexes (Taruvi extension: `indexes`)
 
 ```json
-{"name": "idx_categories_slug",       "expression": "LOWER(slug)", "unique": true}
-{"name": "idx_projects_owner_status", "fields": ["owner_id", "status"]}
-{"name": "idx_projects_settings",     "fields": ["settings"], "type": "gin"}
-{"name": "idx_projects_active_recent","fields": ["created_at"], "where": "status = 'active'"}
+{
+  "schema": {
+    "fields": [...],
+    "primaryKey": ["id"],
+    "indexes": [
+      {"name": "idx_created", "fields": ["created_at"], "type": "btree"},
+      {"name": "idx_cust_status", "fields": ["customer_id", "status"], "unique": false},
+      {"name": "idx_metadata", "fields": ["metadata"], "type": "gin"},
+      {"name": "idx_email_lower", "expression": "LOWER(email)", "unique": true},
+      {"name": "idx_active_only", "fields": ["created_at"], "where": "is_active = true"}
+    ]
+  }
+}
 ```
 
-Taruvi does **not** auto-index anything beyond the PK — add explicit indexes for every column you filter or sort on.
+Types: `btree` (default), `hash`, `gin`, `gist`, `brin`. GIN is required for JSONB search.
 
-## §6 Search fields (Taruvi extension: `search_fields`)
+Index properties: `name` (required), `fields` or `expression` (one required), `type`/`method`, `unique`, `where` (partial index condition), `using`, `comment`.
+
+## Search fields (Taruvi extension: `search_fields`)
 
 Declares which fields are searchable via the `?search=<query>` URL parameter when consumed via the data API.
 
 ```json
-"search_fields": [
-  {"field": "title", "weight": "A"},
-  {"field": "description", "weight": "C"}
-]
+{
+  "schema": {
+    "fields": [...],
+    "search_fields": [
+      {"field": "title", "weight": "A"},
+      {"field": "description", "weight": "B"}
+    ]
+  }
+}
 ```
 
-Weights are Postgres tsvector weight letters: `A` (highest), `B`, `C`, `D` (lowest). Plain string entries (without a weight) default to `D`.
+Weights are Postgres tsvector weight letters: `A` (highest), `B`, `C`, `D` (lowest). Plain strings (without a weight) default to `D`.
 
-### Non-English content
-
-Set `search_language` and `search_config` to a Postgres text-search configuration:
+Options: `search_language` (default `"english"`) and `search_config` (default `"english"`) control the Postgres text search configuration. Set these for non-English content:
 
 ```json
 {
@@ -342,70 +153,151 @@ Set `search_language` and `search_config` to a Postgres text-search configuratio
 }
 ```
 
-## §7 Hierarchy (parent/child closure)
+## Hierarchy and graph
 
-```json
-"hierarchy": {"enabled": true, "self_reference": "parent_id"}
-```
-
-Creates a closure table maintained automatically. Query descendants/ancestors via `datatable_data` meta or the graph API. The example uses this on `categories`; `parent_id` itself is also a normal self-referencing FK so deletes/cascades work as usual.
-
-## §8 Graph (many-to-many with edge metadata)
-
-```json
-"graph": {"enabled": true, "edge_types": ["prerequisite", "related"]}
-```
-
-Creates an `<table>_edges` companion table. Use `datatable_edges` to manipulate edges. Each edge has `from_id`, `to_id`, `type`, `metadata` (JSONB), `created_by_id`, `created_at`.
-
-### §8.1 Advanced graph: inverse + typed edge metadata
-
-```json
-"graph": {
-  "enabled": true,
-  "types": [
-    {"name": "blocks", "inverse": "blocked_by"},
-    {"name": "relates_to", "metadata": {"fields": [{"name": "linked_at", "type": "datetime"}]}}
-  ]
-}
-```
-
-- `inverse` — declares the reverse edge name. Querying `blocked_by` of node X returns nodes where X is `blocks`.
-- `metadata.fields` — typed fields stored on each edge of this type, queryable via `datatable_edges`.
-
-## §9 Column rename (`x-rename-from`)
-
-For evolving an existing table without losing data. Send a follow-up `create_update_schema` where the renamed column declares its old name:
+Both hierarchy and graph relationships are stored in the same auto-generated `<table>_edges` companion table (`from_id`, `to_id`, `type`, `metadata`, `created_at`). Declare the desired semantics on the resource:
 
 ```json
 {
-  "name": "summary",
-  "type": "string",
-  "x-rename-from": "description"
+  "name": "employees",
+  "schema": {
+    "fields": [...],
+    "primaryKey": ["id"],
+    "hierarchy": true,
+    "graph": {
+      "enabled": true,
+      "types": [
+        {
+          "name": "manager",
+          "inverse": "reports",
+          "constraints": {"max_outgoing": 1},
+          "description": "Primary reporting line"
+        },
+        {
+          "name": "mentor",
+          "metadata": {"fields": [{"name": "since", "type": "date"}]}
+        }
+      ]
+    }
+  }
 }
 ```
 
-The materializer drops the old column after copying data into the new one.
+- `hierarchy: true` (boolean flag) — enables hierarchy query semantics (`include=descendants|ancestors` with `depth`).
+- `graph.enabled: true` — enables typed edges via the `<table>_edges` companion table.
+- `graph.types[]` — declare each allowed edge type. Use it for typed metadata fields, edge constraints, and an `inverse` label:
+  - `inverse` — semantic name for the reverse direction. Documentation only; traversal still uses `include=ancestors|descendants` plus the chosen `relationship_type`.
+  - `metadata.fields` — typed fields stored on each edge of this type, queryable via `datatable_edges`.
+  - `constraints.max_outgoing` / `constraints.max_incoming` — cap edges per node (e.g. `max_outgoing: 1` enforces single-manager / tree shape).
 
-## §10 Populate (FK auto-expansion at query time)
+For a pure tree (single implicit edge type), `hierarchy: true` alone is enough; for a DAG with multiple typed relationships, add the `graph` block. Server caps traversal depth via `DATA_SERVICE_GRAPH_MAX_DEPTH` (default 10). Manipulate edges with `datatable_edges`.
 
-Populate is a **query-time** feature, not a schema feature. As long as you declare FKs, consumers (Refine providers, MCP `datatable_data`) can expand them:
+## Schema evolution
+
+Resubmitting a datapackage via `create_update_schema` (or `PATCH` on the resource) triggers a migration. The data service classifies each change as safe or destructive:
+
+| Safe | Destructive — require `allow_data_loss=True` |
+|---|---|
+| Add nullable column | Add NOT NULL column without a default |
+| Add column with `default` | Narrow a column type (e.g. TEXT → VARCHAR(10)) |
+| Drop column (data lost; opt-in via the destructive flag) | Incompatible type cast (e.g. TEXT → INTEGER) |
+| Make column nullable | Remove a NOT NULL constraint |
+| Widen a column type | |
+| Add foreign key, index | |
+| Rename column with `x-rename-from` | |
+
+### Column rename (`x-rename-from`)
+
+```json
+{"name": "email_address", "type": "string", "x-rename-from": "email"}
+```
+
+Without the hint, the materializer treats it as drop + add and loses data.
+
+### Adding a NOT NULL column to a populated table
+
+Either supply a `default` (single safe step) or run the three-step pattern: add nullable → populate via `datatable_data` upsert / raw SQL → resubmit with `required: true`.
+
+### Revision history and rollback
+
+Every schema operation is recorded with `revision_id`, `executed_sql`, and an auto-generated `rollback_sql`. The data service exposes a rollback endpoint per resource (`POST /api/apps/{slug}/datatables/{table}/rollback/` with `{"revision_id": "..."}`). DDL statements have a server-side timeout of ~30s — split large refactors into smaller steps.
+
+Rollback caveats: dropped column data is not recoverable; an already-rolled-back operation cannot be rolled back again; type conversions whose backward cast would fail are not rollable.
+
+### Imports vs schema creation
+
+The import workflow uses the same Frictionless data package shape. The REST endpoint accepts `?materialize=true` to create physical tables immediately; without it, only metadata is registered. `create_update_schema` (MCP) always materializes.
+
+## Conventions
+
+- **Soft delete** — if a table has a field named `is_deleted` (boolean), `delete` operations through the data service set the flag instead of removing the row.
+- **Auto-managed timestamps** — `created_at` and `updated_at` are populated by the data service when those columns exist. Declare them as `datetime` fields; no extra schema flag needed.
+- **System FK targets** — `auth_user` and `storage_objects` are valid `reference.resource` values for cross-cutting FKs.
+
+## Populate (FK auto-expansion at query time)
+
+Populate is a **query-time** feature, not a schema feature. To support it, just declare FKs. Consumers (Refine providers, MCP `datatable_data`) can request populated fields via:
 
 ```
-datatable_data(action="query", table_name="tasks", populate="project,project.category,assignee_id")
+datatable_data(action="query", table_name="line_items", populate="order,order.customer")
 ```
 
-- Dots traverse nested FKs.
-- `*` populates all one-hop FKs.
+Dots traverse nested FKs. Use `*` to populate all one-hop FKs.
 
-## §11 Common mistakes
+## Common mistakes
 
-See also: Gotchas in `SKILL.md` for cross-cutting warnings (field dropping, policy replacement, etc.).
+See also: Gotchas in SKILL.md for cross-cutting warnings (field dropping, policy replacement, etc.).
 
-1. **Omitting `primaryKey`** — every table must declare one. Single-field: `"primaryKey": ["id"]`. Composite: `"primaryKey": ["tenant_id", "order_id"]`.
-2. **Changing a column type in place** — usually works but may fail on existing data. Safer to add a new column, migrate via `datatable_data` upserts or raw SQL, then drop the old column.
-3. **Adding a `required` constraint to a column that already has NULLs** — fails. Backfill first or add a default.
+1. **Omitting `primaryKey`** — every table must declare one. Single-field PK: `"primaryKey": ["id"]`. Composite: `"primaryKey": ["tenant_id", "order_id"]`.
+2. **Narrowing or changing a column type in place** — classified destructive; rejected without `allow_data_loss=True`. Validate existing values fit the new type before forcing the flag, or add a new column, migrate, drop.
+3. **Adding a required column to a populated table without a `default`** — fails unless you set `allow_data_loss=True`. Prefer the safe pattern: declare with a `default` (one step), or add nullable → populate → resubmit with `required: true`.
 4. **Foreign key to a not-yet-materialized table in the same datapackage** — order `resources[]` so referenced tables come first, or submit them in separate `create_update_schema` calls.
-5. **Forgetting `indexes` on frequently-filtered columns** — Taruvi won't add indexes automatically beyond the PK. Add explicit indexes for every filter/sort column.
-6. **Using `gin` on a non-JSONB field** — GIN is for JSONB (and tsvector); use `btree` for normal columns.
-7. **Setting `onDelete: "SET NULL"` on a `required` field** — contradictory; the materializer will reject it.
+5. **Forgetting `indexes` on frequently-filtered columns** — Taruvi only auto-indexes the PK. Add explicit indexes for filter/sort columns; required for FK columns you'll traverse via `?fk.field=...`.
+6. **Renaming without `x-rename-from`** — the materializer treats a name change as drop + add and loses the column data. Always include the hint.
+
+## Worked example: blog schema
+
+```json
+{
+  "resources": [
+    {
+      "name": "authors",
+      "schema": {
+        "fields": [
+          {"name": "id", "type": "string", "format": "uuid", "constraints": {"required": true}},
+          {"name": "name", "type": "string", "constraints": {"required": true, "maxLength": 255}},
+          {"name": "bio", "type": "string"}
+        ],
+        "primaryKey": ["id"]
+      }
+    },
+    {
+      "name": "posts",
+      "schema": {
+        "fields": [
+          {"name": "id", "type": "string", "format": "uuid", "constraints": {"required": true}},
+          {"name": "author_id", "type": "string", "format": "uuid", "constraints": {"required": true}},
+          {"name": "title", "type": "string", "constraints": {"required": true, "maxLength": 500}},
+          {"name": "body", "type": "string"},
+          {"name": "status", "type": "string", "constraints": {"enum": ["draft", "published"]}},
+          {"name": "tags", "type": "array"},
+          {"name": "published_at", "type": "datetime"},
+          {"name": "created_at", "type": "datetime", "constraints": {"required": true}}
+        ],
+        "primaryKey": ["id"],
+        "foreignKeys": [
+          {"fields": ["author_id"], "reference": {"resource": "authors", "fields": ["id"]}}
+        ],
+        "indexes": [
+          {"name": "idx_status_pub", "fields": ["status", "published_at"]},
+          {"name": "idx_author", "fields": ["author_id"]}
+        ],
+        "search_fields": [
+          {"field": "title", "weight": "A"},
+          {"field": "body", "weight": "B"}
+        ]
+      }
+    }
+  ]
+}
+```

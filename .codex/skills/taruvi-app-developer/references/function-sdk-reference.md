@@ -25,7 +25,29 @@ result = (
 )
 ```
 
-**Filter operators:** `eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `contains`, `startswith`, `endswith`
+**Filter operators:** `eq`, `ne`, `gt`, `gte`, `lt`, `lte`, `in`, `nin`, `between`, `nbetween`, `null` (isnull), `nnull`, `contains`, `ncontains`, `icontains`, `nicontains` (and the same `i*` / `*s` pattern for `startswith` / `endswith`), `search` (full-text on `search_vector` columns).
+
+String defaults are case-sensitive; prefix `i` for case-insensitive. Array operators: `acontains`, `acontainedby`, `aoverlap`, `aelement` (and `n*` negatives).
+
+### Filtering on related fields
+
+Dot notation traverses FKs, reverse relationships, and many-to-many. Max 3 hops, max 5 distinct paths per request. Cannot be combined with aggregations.
+
+```python
+# Forward FK
+result = sdk_client.database.from_("deals").filter("company_id.name", "contains", "Acme").execute()
+
+# Multi-hop forward
+result = sdk_client.database.from_("deals").filter("owner_id.team_id.name", "eq", "sales").execute()
+
+# Reverse FK — at least one matching child
+result = sdk_client.database.from_("deals").filter("activities.subject", "contains", "follow-up").execute()
+
+# Many-to-many — junction handled automatically
+result = sdk_client.database.from_("users").filter("roles.name", "in", ["admin", "editor"]).execute()
+```
+
+Sort works on dotted paths too: `.sort("company_id.name", "desc")`.
 
 ### CRUD Helpers
 
@@ -57,17 +79,26 @@ sdk_client.database.delete("users", filter={"is_active": False})
 ### Aggregations
 
 ```python
+# With group_by — rows include group fields + aggregate columns
 result = (
     sdk_client.database.from_("orders")
-    .aggregate("sum(total_amount)", "count(*)")
-    .group_by("status")
-    .having("count(*) > 5")
+    .aggregate("sum(total_amount) as revenue", "count(*)")
+    .group_by("status", "date_trunc('month', created_at)")
+    .having("count__gt=5")
     .execute()
 )
-# result["data"] → [{ status, sum_total_amount, count }]
+# result["data"] → [{ status, sum_month, revenue, count }, ...]
+
+# Without group_by — aggregates returned alongside data
+result = sdk_client.database.from_("orders").aggregate("count(*)", "sum(total)").execute()
+# result["aggregates"] → { "count": 150, "sum_total": 15000 }
 ```
 
-Supported functions: `sum`, `avg`, `count`, `min`, `max`, `array_agg`, `string_agg`, `json_agg`, `stddev`, `variance`
+Supported functions: `count(*)`, `count(field)`, `count(distinct field)`, `sum`, `avg`, `min`, `max`, `array_agg`, `string_agg`, `json_agg`, `stddev`, `variance`.
+
+Response field naming: `<function>_<field>` (e.g. `sum_price`), `count(*)` → `count`, aliases (`sum(total) as revenue`) use the alias. `having` references the response name with `__gt` / `__gte` / `__lt` / `__lte` / `__eq` / `__ne`, comma-separated for multiple conditions (`count__gte=10,sum_total__gte=5000`).
+
+Restrictions: no nested aggregations, no window functions, no traversal filters in the same query.
 
 ### Full-Text Search
 
@@ -78,8 +109,10 @@ result = (
     .page_size(10)
     .execute()
 )
-# Requires a search_vector field (PostgreSQL tsvector)
+# Requires a search_vector field (PostgreSQL tsvector). Response rows include `rank`.
 ```
+
+Modifiers in the query string: phrase with quotes (`"rest api"`), exclude with `-` (`guide -archived`), boolean OR (`tutorial OR guide`). Multi-word terms are ANDed by default.
 
 ### Populate (Foreign Keys)
 

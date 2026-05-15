@@ -1,102 +1,135 @@
 # Backend query capabilities
 
-What the Taruvi backend supports for datatables, storage, and users. Read this when building frontend queries to know what the backend can handle.
+What the Taruvi data service supports for datatables, storage, and users. Source of truth: <https://test-docs.taruvi.cloud/docs/data-service/guides/querying> (and `aggregations`, `graph-traversal` siblings). Reflects May 2026 surface.
 
-## Datatable filter operators
+REST URL convention: `?field__operator=value` (double-underscore separates path segments and operator). Field paths can traverse relations with `.` (see below).
 
-The backend supports these operators via `field__operator=value` query params:
+## Filter operators
 
 ### Comparison
-| Operator | Meaning |
+| Op | Meaning |
 |---|---|
-| `eq` | Equals (default if no operator) |
+| (none) / `eq` | Equals — `?status=active` or `?status__eq=active` |
 | `ne` | Not equals |
-| `gt` / `gte` | Greater than / greater or equal |
-| `lt` / `lte` | Less than / less or equal |
+| `gt` / `gte` / `lt` / `lte` | Comparisons |
 
-### String matching (case-insensitive by default)
-| Operator | Meaning |
+### String matching
+**Defaults are case-sensitive.** Prefix with `i` for case-insensitive; `s` suffix is an explicit case-sensitive alias.
+
+| Op | Meaning |
 |---|---|
-| `contains` / `ncontains` | Contains (case-insensitive) |
-| `containss` / `ncontainss` | Contains (case-sensitive) |
-| `startswith` / `nstartswith` | Starts with (case-insensitive) |
-| `startswiths` / `nstartswiths` | Starts with (case-sensitive) |
-| `endswith` / `nendswith` | Ends with (case-insensitive) |
-| `endswiths` / `nendswiths` | Ends with (case-sensitive) |
+| `contains` / `ncontains` | Contains (case-sensitive) |
+| `icontains` / `nicontains` | Contains (case-insensitive) |
+| `containss` / `ncontainss` | Contains (case-sensitive — explicit alias) |
+| `startswith` / `nstartswith` / `istartswith` / `nistartswith` / `startswiths` | Same pattern |
+| `endswith` / `nendswith` / `iendswith` / `niendswith` / `endswiths` | Same pattern |
 
-Note: `icontains` is an alias for `contains`.
-
-### Set operators
-| Operator | Meaning | Example |
-|---|---|---|
-| `in` | Value in list | `status__in=active,pending` |
-| `nin` | Value not in list | `status__nin=deleted,banned` |
-
-### Range
-| Operator | Meaning | Example |
-|---|---|---|
-| `between` | Between two values | `price__between=10,100` |
-| `nbetween` | Not between | `price__nbetween=10,100` |
-
-### Null checks
-| Operator | Meaning |
+### Set / range / null
+| Op | Meaning |
 |---|---|
-| `null` | Is NULL (`field__null=true`) |
-| `nnull` | Is NOT NULL |
+| `in` / `nin` | Value in / not in list — `status__in=active,pending` |
+| `between` / `nbetween` | `price__between=10,100` |
+| `null` / `nnull` | `bio__null=true` |
 
 ### Full-text search
-| Operator | Meaning |
+- `?search=<query>` — requires a `search_vector` field on the table (GIN index recommended).
+- Modifiers: phrase with quotes (`?search="rest api"`), exclude with `-` (`?search=guide -archived`), boolean OR (`?search=tutorial OR guide`). Multi-word queries are ANDed by default.
+- Response rows include a `rank` relevance score.
+
+### Array (PostgreSQL array columns)
+| Op | Maps to |
 |---|---|
-| `search` | PostgreSQL tsvector search (requires `search_vector` field) |
+| `acontains` / `nacontains` | `@>` (contains all) |
+| `acontainedby` / `nacontainedby` | `<@` |
+| `aoverlap` / `naoverlap` | `&&` |
+| `aelement` / `naelement` | `= ANY()` |
 
-### Array operators (PostgreSQL)
-| Operator | Meaning |
+## Filtering on related fields (dot notation)
+
+Traverse foreign-key or reverse relationships with `.` in the field path. The related row is **not** included in the response unless you also pass `populate=` for the same path.
+
+| Direction | Example |
 |---|---|
-| `acontains` / `nacontains` | Array contains all items (`@>`) |
-| `acontainedby` / `nacontainedby` | Array contained by (`<@`) |
-| `aoverlap` / `naoverlap` | Arrays overlap (`&&`) |
-| `aelement` / `naelement` | Value exists in array (`= ANY()`) |
+| Forward FK (many-to-one) | `?deal_id.name__contains=Acme` |
+| Multi-hop forward | `?deal_id.company_id.name__startswith=Acme` (max 3 hops) |
+| Reverse FK (one-to-many) | `?activities.subject__contains=follow-up` — parent appears once if ≥1 child matches |
+| Many-to-many | `?roles.name__contains=admin` — junction table traversed automatically |
 
-### Hierarchy operators
-| Operator | Meaning |
-|---|---|
-| `descendants` | Filter by descendants in hierarchy |
-| `ancestors` | Filter by ancestors in hierarchy |
+Multiple filters on the same FK path share one JOIN and are ANDed.
 
-### Logic operators
-The backend supports nested AND/OR/NOT:
-```json
-{ "and": [{ "status": "active" }, { "or": [{ "age__gte": 18 }, { "verified": true }] }] }
-```
+Limits (defaults, env-configurable): max **3 hops** per chain, max **5 distinct traversal paths** per request. Aggregations and traversal filters cannot be combined.
 
-## Datatable aggregation
+## Sorting
 
-**Note:** Aggregation is available via the REST API and Refine data providers, not via the `datatable_data` MCP tool. Use `execute_raw_sql` or `manage_query` for aggregation via MCP.
+- `?_sort=field&_order=asc|desc` — single field.
+- `?_sort=field1,field2&_order=asc,desc` — multiple fields.
+- Dot notation works: `?_sort=deal_id.name&_order=desc`. Sort-only traversal uses `LEFT JOIN` (NULL FKs preserved); if a filter shares the path, the join is shared and promoted to `INNER JOIN`.
+- Same 3-hop / `belongsTo`-only limits as filter traversal.
 
-Supported functions: `count(*)`, `count(field)`, `sum(field)`, `avg(field)`, `min(field)`, `max(field)`, `array_agg(field)`, `string_agg(field)`, `json_agg(field)`, `stddev(field)`, `variance(field)`.
+## Pagination
 
-Complex expressions with aliases: `sum(total) as revenue`, `avg(extract(epoch from (end_time - start_time)) / 86400) as avg_days`.
-
-GROUP BY supports field names and SQL expressions: `DATE_TRUNC('month', created_at)`.
-
-HAVING filters groups after aggregation — only works with GROUP BY.
-
-## Datatable pagination
-
-- `page` (1-indexed, default: 1), `page_size` (max enforced by server config)
-- Response includes: `total`, `pagination.current_page`, `pagination.total_pages`, `pagination.has_next`, `pagination.has_previous`
+- `?page=N&page_size=M` (page is 1-indexed). REST also accepts `_start` / `_end`.
+- Response includes `total` and `pagination.{current_page,total_pages,has_next,has_previous}`.
 
 ## Populate (FK expansion)
 
-- `populate=author,category` — expand foreign key fields inline
-- `populate=*` — expand all FKs
-- Max populate depth: 3
+- `?populate=author,category` — expand FK fields inline.
+- `?populate=author.company` — dotted path, max 3 hops.
+- `?populate=*` — expand all one-hop FKs.
 
-## Additional datatable features
+## Aggregation
 
-- **Upsert**: `meta.upsert: true` on create — insert or update on conflict
-- **Delete by filter**: `meta.deleteByFilter: true` on deleteMany — delete by filter instead of IDs
-- **Zero-downtime rename**: `x-rename-from` on field schema to rename without data loss
+REST params: `_aggregate`, `_group_by`, `_having`. Available through the Refine data provider's `meta` and the Python SDK; **not** via the `datatable_data` MCP tool (use `manage_query` or `execute_raw_sql` for MCP-side aggregation).
+
+Supported functions: `count(*)`, `count(field)`, `count(distinct field)`, `sum`, `avg`, `min`, `max`, `array_agg`, `string_agg`, `json_agg`, `stddev`, `variance`.
+
+Syntax features:
+
+- Multiple aggregates: `_aggregate=sum(price),count(*),avg(price)`.
+- Aliases: `_aggregate=sum(total) as revenue`. Custom alias becomes the response field name.
+- Group by SQL expressions: `_group_by=date_trunc('day', created_at)`; timezone: `date_trunc('day', created_at AT TIME ZONE 'America/New_York')`.
+- `_having` operators: `__gt`, `__gte`, `__lt`, `__lte`, `__eq`, `__ne`. Comma-separated for multiple conditions: `_having=count__gte=10,sum_total__gte=5000`. References use the **response field name** (`sum_total`, not `sum(total)`).
+
+Response shape:
+
+- **Without GROUP BY**: `{ "data": [...], "aggregates": { "count": N, "sum_price": ..., "avg_rating": ... } }`.
+- **With GROUP BY**: each row in `data` includes the group fields plus aggregate columns (`{category, sum_price, count, avg_price}`).
+- Default field naming: `<function>_<field>` (`sum(price)` → `sum_price`); `count(*)` → `count`; aliased aggregates use the alias.
+
+Compatible with `filter`, `sort`, `populate`, pagination. Not yet supported: window functions, nested aggregations, traversal filters alongside aggregates.
+
+## Graph / hierarchy traversal
+
+Query params:
+
+- `format=tree` (nested children) or `format=graph` (separate `nodes` + `edges` arrays).
+- `include=descendants` (incoming edges) | `ancestors` (outgoing) | `both`.
+- `depth=<int>` — server max `DATA_SERVICE_GRAPH_MAX_DEPTH=10`. Recommend ≤10 for small orgs, ≤7 medium, ≤5 large.
+- `relationship_type=<name>` — filter by edge type (single or comma-separated).
+
+Response rows carry `_depth` and `_relationship_type` from the traversal.
+
+Edge CRUD (REST):
+```
+GET    /api/apps/{slug}/datatables/{table}/edges/
+POST   /api/apps/{slug}/datatables/{table}/edges/
+PATCH  /api/apps/{slug}/datatables/{table}/edges/{edge_id}/
+DELETE /api/apps/{slug}/datatables/{table}/edges/
+```
+
+Edge row: `{id, from_id, to_id, type, metadata, created_at}`. Edge tables are created automatically as `<table>_edges` when the schema declares `hierarchy.enabled: true` or `graph.enabled: true`.
+
+Hierarchy mode (`hierarchy.enabled`) is a single implicit `parent` type; graph mode (`graph.enabled`) supports multiple typed edges and DAGs. See [`datatable-schema-patterns.md`](datatable-schema-patterns.md) for declaration.
+
+## Provider modes
+
+Datatables run on either the `flat_table` provider (default, fully supported) or the `jsonb` provider. Traversal filters are **rejected on the jsonb provider** with a clear error.
+
+## Datatable write features
+
+- **Upsert**: `meta.upsert: true` on create.
+- **Delete by filter**: `meta.deleteByFilter: true` on `useDeleteMany` (Refine) or `action="delete"` with `filters` (MCP).
+- **Zero-downtime column rename**: `x-rename-from` in the schema (see [`datatable-schema-patterns.md`](datatable-schema-patterns.md)).
 
 ## Storage object filters
 
@@ -108,11 +141,11 @@ HAVING filters groups after aggregation — only works with GROUP BY.
 | `prefix` | Bucket-relative path prefix (`users/123/`) |
 | `mimetype`, `mimetype__in` | `?mimetype__in=image/png,image/jpeg` |
 | `mimetype_category` | `?mimetype_category=image` (matches `image/*`) |
-| `visibility` | `public` or `private` |
-| `created_by_me`, `modified_by_me` | Files by authenticated user |
+| `visibility` | `public` / `private` |
+| `created_by_me`, `modified_by_me` | Files by the authenticated user |
 | `metadata_search` | Search inside metadata JSON |
 
-### Storage bucket configuration
+### Bucket configuration
 
 | Field | Required | Default | MCP `create_bucket` |
 |---|---|---|---|
@@ -120,39 +153,28 @@ HAVING filters groups after aggregation — only works with GROUP BY.
 | `app_category` | Yes | `assets` or `attachments` | ✅ |
 | `visibility` | No | `private` | ✅ |
 | `max_size_bytes` | No | Advisory quota | ✅ |
-| `file_size_limit` | No | 50MB (52428800 bytes) | ❌ REST API only |
-| `allowed_mime_types` | No | Empty = all allowed. Supports exact (`application/pdf`) or wildcard (`image/*`) | ❌ REST API only |
-| `max_objects` | No | Advisory quota | ❌ REST API only |
+| `file_size_limit` | No | 50MB | ❌ REST only |
+| `allowed_mime_types` | No | Empty = all | ❌ REST only |
+| `max_objects` | No | Advisory quota | ❌ REST only |
 
-### Storage upload behavior
-- Uploading to an existing path **replaces** the object silently (upsert). No warning from API.
-- `allowed_mime_types` rejection returns a generic 400 with no mention of MIME types.
+### Upload behavior & batch limits
 
-### Storage batch limits
-- Batch upload: max 10 files, max 100MB per call. No partial success.
-- Batch delete: max 100 paths per call. Supports partial success.
-- Quotas are advisory only — API does not block uploads when exceeded.
+- Uploading to an existing path **replaces silently** (upsert).
+- `allowed_mime_types` rejections return a generic 400 with no MIME-type detail.
+- Batch upload: ≤10 files, ≤100MB per call, no partial success.
+- Batch delete: ≤100 paths per call, supports partial success.
+- Quotas are advisory — the API does not block uploads when exceeded.
 
 ## User list filters
 
 | Filter | Meaning |
 |---|---|
-| `search` | Searches username, email, first_name, last_name (case-insensitive) |
-| `is_active` | Filter by active status |
-| `is_staff` | Filter by staff status |
-| `is_superuser` | Filter by superuser |
-| `is_deleted` | Filter by soft-deleted |
+| `search` | username, email, first_name, last_name (case-insensitive) |
+| `is_active` / `is_staff` / `is_superuser` / `is_deleted` | Status flags |
 | `roles` | Comma-separated role slugs |
 
 Sorting: single field, Django-style (`ordering=-date_joined`).
 
-## User role assignment
+Role assignments: separate from user CRUD (`manage_role_assignments`), max 100 roles × 100 usernames per call, supports `expires_at`.
 
-- Roles are assigned/revoked separately from user CRUD (via `manage_role_assignments`)
-- Max 100 roles and 100 usernames per call
-- Supports expiration: `expires_at` (ISO datetime)
-
-## User attributes and preferences
-
-- **Attributes**: custom JSONB field validated against a tenant-level JSON Schema. Admin-controlled.
-- **Preferences**: key-value store per user (e.g., `theme`, `timezone`). User-controlled.
+User attributes: tenant-wide JSONB validated against a JSON Schema (admin-controlled). User preferences: per-user key-value (user-controlled).

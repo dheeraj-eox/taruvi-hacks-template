@@ -47,6 +47,22 @@ After shipping a fix, truncate before asking the user to re-test so the next rep
 
 If the file is missing, no errors have been captured yet — ask the user to reproduce the issue once, then re-read.
 
+## Mandatory UI / Design System Preflight
+
+For any task that **renders, styles, or restyles UI** — new pages, layouts, forms, tables, charts, status badges, colors, typography, spacing, theme work, MUI overrides, or any "make it look like X" request:
+
+1. You MUST open and read [`UI_Guidelines.md`](UI_Guidelines.md) first. It is the companion to the MUI theme and resolves design-system ambiguities the theme cannot encode on its own.
+2. The single source of truth for design tokens is [`themeOptions.ts`](themeOptions.ts) — import `taruviTokens` for raw values:
+   ```ts
+   import { taruviTokens } from "../../themeOptions"; // or from "@/theme/themeOptions"
+   ```
+   Never hardcode brand hex strings (`#1E88E5`, `#388e3c`, `#1AB3E6`, etc.) — pull them from `taruviTokens`.
+3. Prefer plain MUI components (`<Button>`, `<Chip>`, `<Card>`, `<TextField>`, `<Alert>`, `<Table*>`, `<ListItemButton>`, `<Breadcrumbs>`, `<Tabs>`, `<Dialog>`, …) — the theme already applies every spec'd size, weight, radius, padding, shadow, and color via component overrides. Do not reimplement these styles with `sx` or custom CSS.
+4. For things the theme cannot enforce (page-level layout, form-row grid, hero gradient, status chip mapping to MUI color slots, "ON HOLD" / "TO DO" chips, chart colors via Recharts, icon conventions, avatar sizing) — follow the snippets in `UI_Guidelines.md`.
+5. Use **`*Rounded`** icon variants from `@mui/icons-material` (e.g., `EditRoundedIcon`, `AddRoundedIcon`) — the design system uses Material Icons Rounded, not the filled defaults.
+
+If `UI_Guidelines.md` or `themeOptions.ts` is missing, stop and tell the user — do not implement design from memory.
+
 ## Mandatory Taruvi Preflight
 
 For any task involving Taruvi, Refine + Taruvi, `@taruvi/sdk`, or `@taruvi/refine-providers`:
@@ -318,7 +334,7 @@ npm run refine       # Run Refine CLI
 
 This is a **Refine.dev v5 project** - leverage the framework's hooks and patterns rather than reinventing CRUD operations.
 
-Follow UI Guidelines from UI_Guidelines.md
+For any UI/style/theme work, follow [`UI_Guidelines.md`](UI_Guidelines.md) and `taruviTokens` from [`themeOptions.ts`](themeOptions.ts) — see the "Mandatory UI / Design System Preflight" section near the top of this file for the full rules.
 
 ## Frontend Deployment
 

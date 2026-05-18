@@ -97,7 +97,7 @@ Array operators: `acontains` / `nacontains` (`@>`), `acontainedby` / `nacontaine
 
 ### Full-text search
 
-`useList({ resource: "posts", filters: [{ field: "search", operator: "eq", value: "rest api" }] })`. Requires a `search_vector` column. Quote phrases (`"rest api"`), exclude with `-` (`guide -archived`), boolean OR (`tutorial OR guide`). Response rows include a `rank` score.
+`useList({ resource: "posts", filters: [{ field: "search", operator: "eq", value: "rest api" }] })`. Only works if the table declares `search_fields` in its schema — without it the call silently returns nothing. Quote phrases (`"rest api"`), exclude with `-` (`guide -archived`), boolean OR (`tutorial OR guide`). Response rows include a `rank` score.
 
 ## Sorting and pagination
 

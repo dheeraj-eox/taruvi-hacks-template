@@ -32,7 +32,7 @@ REST URL convention: `?field__operator=value` (double-underscore separates path 
 | `null` / `nnull` | `bio__null=true` |
 
 ### Full-text search
-- `?search=<query>` — requires a `search_vector` field on the table (GIN index recommended).
+- `?search=<query>` — only works if the table declares `search_fields` in its schema (that's what synthesizes `search_vector`). Without it, the call silently returns nothing. See [`datatable-schema-patterns.md`](datatable-schema-patterns.md#search-search_fields).
 - Modifiers: phrase with quotes (`?search="rest api"`), exclude with `-` (`?search=guide -archived`), boolean OR (`?search=tutorial OR guide`). Multi-word queries are ANDed by default.
 - Response rows include a `rank` relevance score.
 

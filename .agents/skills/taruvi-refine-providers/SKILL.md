@@ -71,8 +71,8 @@ Unless the user explicitly scopes down, every frontend deliverable must meet the
 
 ### Dashboards / KPIs / charts
 
-- **One table** → datatable `aggregate` + `groupBy` (`useList` with `meta.aggregate: ["count"]` — note the array; `aggregate: "count"` fails silently).
-- **2+ tables** → saved analytics query via `appDataProvider` + `useCustom({ meta: { kind: "analytics" } })`. If the query doesn't exist, the registration is a backend task (`taruvi-app-developer`).
+- **Default**: datatable `aggregate` + `groupBy` via `useList` with `meta.aggregate: ["count"]` (note the array — `aggregate: "count"` fails silently). For cross-table needs, the data provider supports `populate` and aggregation together — try that first; aggregating over populated FK fields usually does the job.
+- **Analytics queries are the exception, not the default.** Reach for `appDataProvider` + `useCustom({ meta: { kind: "analytics" } })` only when (a) the source is an **external database** or (b) the SQL genuinely cannot be expressed via the data provider — multi-table joins with grouped aggregation, window functions, recursive CTEs, etc. Registering a query is a separate backend round-trip (`taruvi-app-developer`); avoid it for anything a single `useList` with `meta.aggregate` + `meta.populate` can do.
 - Never fetch full row sets into React to derive summary metrics.
 - Graph queries must set an explicit `depth`.
 - `having` only works after `groupBy`. Use `filters` for pre-aggregation filtering.

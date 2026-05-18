@@ -16,6 +16,6 @@
 
 ## Query Strategy for Dashboards
 
-- Single-table metrics: use datatable provider with `aggregate`/`groupBy`.
-- Dashboard elements needing data from 2+ tables: use saved analytics queries via the `app` provider.
+- **Default**: datatable provider with `aggregate` / `groupBy` (single table) plus `populate` for FK expansion. Cross-table needs on Taruvi datatables usually fit this — try it before reaching for a separate query.
+- **Analytics queries are the exception**, not the default. Use them only for an **external database** source or for SQL the data provider can't express (multi-table joins with grouped aggregation, window functions, recursive CTEs). Registering a query is a separate backend round-trip — avoid it for anything a single `useList` with `meta.aggregate` + `meta.populate` can do.
 - Never fetch full row sets into React to derive summary metrics.

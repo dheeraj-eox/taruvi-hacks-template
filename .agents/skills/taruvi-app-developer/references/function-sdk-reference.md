@@ -109,7 +109,9 @@ result = (
     .page_size(10)
     .execute()
 )
-# Requires a search_vector field (PostgreSQL tsvector). Response rows include `rank`.
+# Only works if the table declares `search_fields` in its schema (that's what
+# synthesizes `search_vector`). Without it, the call silently returns nothing.
+# Response rows include `rank`.
 ```
 
 Modifiers in the query string: phrase with quotes (`"rest api"`), exclude with `-` (`guide -archived`), boolean OR (`tutorial OR guide`). Multi-word terms are ANDed by default.

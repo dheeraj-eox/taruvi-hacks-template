@@ -1,21 +1,18 @@
 ---
 name: taruvi-app-developer
 description: >
-  Use this skill for any backend work on a Taruvi app — provisioning datatables
-  with Frictionless schemas, writing Cerbos policies, managing roles and users,
-  registering and editing serverless functions, creating analytics queries,
-  managing buckets, secrets, tags, or running audited raw SQL via the Taruvi
-  MCP server. Also use when authoring Python function bodies that run inside
-  the Taruvi function runtime (`def main(params, user_data, sdk_client)`),
-  including multi-resource cascades, event/cron handlers, public webhooks, and
-  external API calls with stored secrets. Activate on phrases like "create a
-  datatable", "Frictionless schema", "Cerbos policy", "manage_policies",
-  "provision Taruvi", "upsert rows", "manage_function", "execute_function",
-  "serverless function", "scheduled job", "function trigger",
+  Use this skill for any backend work on a Taruvi app — provisioning
+  datatables (Frictionless schemas), Cerbos policies, roles, users, buckets,
+  secrets, analytics queries, or audited raw SQL via the Taruvi MCP server;
+  and authoring Python function bodies that run in the Taruvi function
+  runtime (`def main(params, user_data, sdk_client)`), including
+  multi-resource cascades, event/cron handlers, public webhooks, and external
+  API calls with stored secrets. Activate on phrases like "create a
+  datatable", "Frictionless schema", "Cerbos policy", "manage_function",
+  "execute_function", "serverless function", "scheduled job",
   "create_update_schema", "execute_raw_sql", "analytics query", "sdk_client",
-  or whenever the user is working with Python code that imports nothing
-  browser-specific and references the Taruvi runtime. Skip when the work is
-  purely Refine frontend wiring (use `taruvi-refine-providers` instead).
+  or any Python code that references the Taruvi runtime. Skip when the work
+  is Refine frontend wiring (use `taruvi-refine-providers` instead).
 license: Apache-2.0
 compatibility: >
   Requires the Taruvi MCP server for provisioning tasks (tools prefixed

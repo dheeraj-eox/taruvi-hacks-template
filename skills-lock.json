@@ -4,12 +4,14 @@
     "taruvi-app-developer": {
       "source": "Taruvi-ai/taruvi-skills",
       "sourceType": "github",
-      "computedHash": "e14be604761ea1e667826a268536765f9d92f7f7"
+      "skillPath": "skills/taruvi-app-developer/SKILL.md",
+      "computedHash": "7d5558f56aee7abce8262c054274c14a2d9ecdd24b06d9a0955fdacb1a88edb4"
     },
     "taruvi-refine-providers": {
       "source": "Taruvi-ai/taruvi-skills",
       "sourceType": "github",
-      "computedHash": "f7367db52f69cd5079f6b4be5cfef4fde4398994"
+      "skillPath": "skills/taruvi-refine-providers/SKILL.md",
+      "computedHash": "79554d23a05dd37cca51c21c4dea3b2f5b6c7f8f287a2397a6fbc961704b933a"
     }
   }
 }

@@ -1,161 +1,199 @@
-# Datatable schema patterns (Frictionless + Taruvi extensions)
+Datatable schema patterns (Frictionless + Taruvi extensions)
 
-The full shape of the `datapackage` argument to `create_update_schema`. Taruvi follows [Frictionless Data Package](https://specs.frictionlessdata.io/data-package/) plus several Taruvi-specific extensions.
+The full shape of the `datapackage` argument to `create_update_schema`. Taruvi follows [Frictionless Data Package](https://specs.frictionlessdata.io/data-package/) plus Taruvi-specific extensions.
 
-Source of truth: <https://test-docs.taruvi.cloud/docs/data-service/guides/migrations> (schema evolution), `/hierarchy`, `/graph-traversal`, `/relationships`, `/imports`.
 
-## Minimal shape
+## Envelope
+
+```json
+{ "name": "...", "title": "...", "description": "...", "resources": [ ... ] }
+```
+
+Only `resources` is required; the rest is Frictionless metadata.
+
+## Resource
+
+| Key | Default | Notes |
+|---|---|---|
+| `name` | derived from `schema.name`/`title` | Physical name = `{app_slug}_{name}`, max 57 bytes (reserves `_edges` suffix). Hyphens/whitespace → `_`; digit-leading names get `t_` prefix. |
+| `title`, `description` | — | Metadata. |
+| `schema` | required | See below |
+| `schema_format` | `frictionless` | Also `native`, `sql` |
+| `provider_type` | `flat_table` | Also `jsonb`, `mongodb`. M2M junctions must be `flat_table`. |
+| `provider_config` | `{}` | Provider-specific settings |
+| `hierarchy` | `false` | Promoted into `schema.hierarchy` |
+| `search_fields` | `[]` | Promoted into `schema.search_fields` |
+| `audit_enabled` | `false` | Toggles the central audit log for this table's writes |
+| `assigned_to` | `null` | Optional user FK from `BaseModel` |
+
+## Minimal schema
 
 ```json
 {
-  "resources": [
-    {
-      "name": "orders",
-      "schema": {
-        "fields": [
-          {"name": "id", "type": "string", "format": "uuid", "constraints": {"required": true}},
-          {"name": "title", "type": "string", "constraints": {"maxLength": 255}},
-          {"name": "created_at", "type": "datetime"}
-        ],
-        "primaryKey": ["id"]
-      }
+  "resources": [{
+    "name": "orders",
+    "schema": {
+      "fields": [
+        {"name": "id", "type": "string", "format": "uuid", "constraints": {"required": true}},
+        {"name": "title", "type": "string", "constraints": {"maxLength": 255}},
+        {"name": "created_at", "type": "datetime"}
+      ],
+      "primaryKey": ["id"]
     }
-  ]
+  }]
 }
 ```
 
-**Prefer UUID IDs for new tables** (`"type": "string", "format": "uuid"`). Integer IDs work but UUIDs are the recommended default.
+**Prefer UUID IDs.** Single-column PKs are auto-normalized to `string/uuid` with `gen_random_uuid()` server default. Composite PKs are exempt. **Integer PKs auto-add `autoincrement: true`** (preserved on already-materialized tables for backward compat). FK fields are auto-normalized to UUID when their target has a UUID PK.
 
-One call can create or update many tables by adding more entries to `resources[]`.
+One call can create or update many tables.
 
 ## Field types
 
 | `type` | Postgres | Notes |
 |---|---|---|
-| `string` | `TEXT` | Use `constraints.maxLength` for varchar-like bound |
+| `string` | `TEXT` | `constraints.maxLength` for varchar-like bound |
 | `integer` | `INTEGER` | |
 | `number` | `NUMERIC` | |
 | `boolean` | `BOOLEAN` | |
 | `date` | `DATE` | ISO 8601 |
 | `datetime` | `TIMESTAMP WITH TIME ZONE` | ISO 8601 |
-| `object` | `JSONB` | arbitrary JSON object |
-| `array` | `JSONB` | arbitrary JSON array |
+| `time` | `TIME` | |
+| `object` | `JSONB` | JSON object |
+| `array` | `JSONB` | JSON array; use `arrayItem` to declare element type |
+| `any` | `JSONB` (default) | Promote to native PG type via `x-pg-type` |
+
+**Range/multirange columns** — `type: "any"` + `x-pg-type`. Values: `int4range`, `int8range`, `numrange`, `daterange`, `tsrange`, `tstzrange`, plus the `*multirange` variants. Query with `__rcontains`, `__roverlaps`, `__rstrictleft`, etc.
+
+```json
+{"name": "booking_window", "type": "any", "x-pg-type": "tstzrange"}
+```
+
+**Typed array elements** —
+
+```json
+{"name": "tag_ids", "type": "array", "arrayItem": {"type": "string", "format": "uuid"}}
+```
 
 ## Field options
 
-Beyond `name` and `type`, fields can carry:
+| Key | Purpose |
+|---|---|
+| `format` | Frictionless hint: `uuid`, `email`, `uri`, `date`, `datetime` |
+| `title`, `description`, `rdfType` | Schema metadata, round-tripped, not enforced |
+| `comment` | Postgres column comment (`COMMENT ON COLUMN ...`) — distinct from `description` which stays in the JSON schema only |
+| `default` | Insert-time default; required when adding a NOT NULL column to a populated table |
+| `constraints` | See below |
+| `arrayItem` | Element type for `array` fields |
+| `x-pg-type` | Native PG type for `type: "any"` |
+| `x-rename-from` | Column rename hint — see Schema evolution |
+| `x-index` | **JSONB provider only.** Per-field index hint: `"btree"` or `"gin"`. Creates an index on the JSONB extraction expression (`(data->>'field')` for btree, `(data)` for gin). Ignored by `flat_table`. |
 
-- `format` — Frictionless format hint. Common values: `uuid`, `email`, `uri`, `date`, `datetime`. Drives type coercion and validation.
-- `default` — default value applied at insert time, e.g. `{"name": "status", "type": "string", "default": "active"}`. Required when adding a NOT NULL column to a populated table (see Schema evolution).
-- `constraints` — see below.
+**Internal markers** (set by the server, do not write yourself): `x-search-metadata`, `x-search-field`, `x-auto-generated`, `x-edge-table`, `x-system-table`, `x-read-only`, `x-reference-table`, `x-source-app`, `x-source-table`, `x-reflected`, `x-reflected-at`, `_hierarchy_mode`, `_hierarchy_sugar`.
 
 ## Constraints
 
-Per-field `constraints` object:
-
-- `required: true` → `NOT NULL`
-- `unique: true` → `UNIQUE` index
-- `maxLength: N` → `CHECK (length(field) <= N)`
-- `minimum` / `maximum` → `CHECK`
-- `pattern: "..."` → `CHECK` against regex
-- `enum: [...]` → `CHECK IN (...)`
-
-## Foreign keys (`foreignKeys`)
-
-```json
-{
-  "name": "line_items",
-  "schema": {
-    "fields": [
-      {"name": "id", "type": "string", "format": "uuid"},
-      {"name": "order_id", "type": "string", "format": "uuid"}
-    ],
-    "primaryKey": ["id"],
-    "foreignKeys": [
-      {
-        "fields": ["order_id"],
-        "reference": {
-          "resource": "orders",
-          "fields": ["id"]
-        },
-        "x-actions": {"onDelete": "CASCADE"}
-      }
-    ]
-  }
-}
+| Key | Effect |
+|---|---|
+| `required` | `NOT NULL` |
+| `unique` | `UNIQUE` index |                                                                                                                                                               | `minLength` / `maxLength` | `CHECK (length(field) >=/<= N)` |
+| `minimum` / `maximum` | `CHECK` |                                                                                                                                                         | `pattern` | `CHECK` against regex |
+| `enum` | `CHECK IN (...)` |                                                                                                                                                                                                                                                                                                                                                           ## Foreign keys
+```json                                                                                                                                                                                     "foreignKeys": [{
+  "fields": ["order_id"],
+  "reference": {"resource": "orders", "fields": ["id"]},                                                                                                                                      "x-actions": {"onDelete": "CASCADE"}
+}]
 ```
 
-FK references must point to a table in the same datapackage or an already-materialized one. If a multi-resource datapackage contains FKs across its own entries, order `resources[]` so referenced tables come first. There's no schema-level declaration for reverse / one-to-many / many-to-many — those are inferred from the child's FK at query time (`?activities.subject__contains=...`, `populate=activities`, etc.). For many-to-many, declare a junction table with two FKs. Only `onDelete` is documented under `x-actions`.
+FK targets must already exist or appear earlier in the same datapackage. **Cross-app reference**: `"reference": {"resource": "other_app:table_name", "fields": ["id"]}`. **System targets**: `auth_user`, `storage_objects` (bucket file metadata).
 
-Default `onDelete` when omitted: `RESTRICT`.
+Reverse relationships, one-to-many, and many-to-many are inferred from FKs at query time. Junction tables for M2M are just regular tables with two FKs.
 
-### Referential delete actions (`x-actions.onDelete`)
-
-Control what happens when a referenced row is deleted:
+### `x-actions.onDelete`
 
 | Value | Behavior |
 |---|---|
-| `RESTRICT` | Block delete if references exist (default) |
+| `NO ACTION` | Default; check at end of transaction |
+| `RESTRICT` | Block delete if references exist |
 | `CASCADE` | Delete referencing rows |
-| `SET NULL` | Set FK column to NULL (field must be nullable) |
-| `SET DEFAULT` | Set FK column to its default (field must have a default) |
-| `NO ACTION` | Same as RESTRICT but checked at end of transaction |
+| `SET NULL` | Set FK to NULL (field must be nullable) |
+| `SET DEFAULT` | Set FK to its default (field must define a default) |
 
-System resources `auth_user` and `storage_objects` (bucket file metadata) can be used as `reference.resource` targets — see Conventions below.
+## Reverse relationships & many-to-many
 
-## Indexes (Taruvi extension: `indexes`)
+`reverseRelationships` is **auto-computed** from declared FKs. Names follow PostgREST convention (child table name, e.g. `"employees"` on `departments`). When two FKs from the same child table point at the same parent, disambiguated with `!fk_column`: `"employees!secondary_dept_id"`.
 
-```json
-{
-  "schema": {
-    "fields": [...],
-    "primaryKey": ["id"],
-    "indexes": [
-      {"name": "idx_created", "fields": ["created_at"], "type": "btree"},
-      {"name": "idx_cust_status", "fields": ["customer_id", "status"], "unique": false},
-      {"name": "idx_metadata", "fields": ["metadata"], "type": "gin"},
-      {"name": "idx_email_lower", "expression": "LOWER(email)", "unique": true},
-      {"name": "idx_active_only", "fields": ["created_at"], "where": "is_active = true"}
-    ]
-  }
-}
-```
-
-Types: `btree` (default), `hash`, `gin`, `gist`, `brin`. GIN is required for JSONB search.
-
-Index properties: `name` (required), `fields` or `expression` (one required), `type`/`method`, `unique`, `where` (partial index condition), `using`, `comment`.
-
-## Search fields (Taruvi extension: `search_fields`)
-
-Declares which fields are searchable via the `?search=<query>` URL parameter when consumed via the data API.
+Manual override (rare):
 
 ```json
-{
-  "schema": {
-    "fields": [...],
-    "search_fields": [
-      {"field": "title", "weight": "A"},
-      {"field": "description", "weight": "B"}
-    ]
-  }
-}
+"reverseRelationships": [
+  {"name": "employees", "type": "hasMany", "foreignTable": "people_employees",
+   "foreignKey": "department_id", "localKey": "id"}
+]
 ```
 
-Weights are Postgres tsvector weight letters: `A` (highest), `B`, `C`, `D` (lowest). Plain strings (without a weight) default to `D`.
-
-Options: `search_language` (default `"english"`) and `search_config` (default `"english"`) control the Postgres text search configuration. Set these for non-English content:
+Declare `manyToManyRelationships` to make a junction populate-friendly:
 
 ```json
-{
-  "search_language": "spanish",
-  "search_config": "spanish",
-  "search_fields": ["titulo", {"field": "cuerpo", "weight": "B"}]
-}
+"manyToManyRelationships": [
+  {"name": "tags", "foreignTable": "people_tags",
+   "junctionTable": "people_item_tags",
+   "junctionLocalKey": "item_id", "junctionForeignKey": "tag_id",
+   "localKey": "id", "foreignKey": "id"}
+]
 ```
 
-## Hierarchy and graph
+## Indexes
 
-Both hierarchy and graph relationships are stored in the same auto-generated `<table>_edges` companion table (`from_id`, `to_id`, `type`, `metadata`, `created_at`). Declare the desired semantics on the resource:
+Only the primary key is auto-indexed. Add explicit entries for filter/sort/FK columns.
+
+```json
+"indexes": [
+  {"name": "idx_created", "fields": ["created_at"]},
+  {"name": "idx_metadata", "fields": ["metadata"], "type": "gin"},
+  {"name": "idx_email_lower", "expression": "LOWER(email)", "unique": true},
+  {"name": "idx_active_only", "fields": ["created_at"], "where": "is_active = true"},
+  {"name": "idx_tags_ops", "fields": ["tags"], "type": "gin", "using": "gin__int_ops"}
+]
+```
+
+| Key | Notes |
+|---|---|
+| `name` | required; auto-prefixed with physical table name |
+| `fields` (alias `columns`) | mutually exclusive with `expression` |
+| `expression` | expression-based index |
+| `type` (alias `method`) | `btree` (default), `hash`, `gin`, `gist`, `brin` |
+| `unique` | bool |
+| `where` | partial-index condition |
+| `using` | operator class (e.g. `gin__int_ops`, `gin__jsonb_ops`) — applies to GIN only |
+| `comment` | Postgres `COMMENT ON INDEX` |
+
+## Search (`search_fields`)
+
+Declare which fields participate in `?search=<query>`.
+
+```json
+"search_fields": [
+  {"field": "title", "weight": "A"},
+  {"field": "description", "weight": "B"}
+]
+```
+
+- Plain strings auto-assigned `A`,`B`,`C`,`D` in declaration order; explicit `weight` overrides.
+- **Max 10 fields, string fields only, no duplicates.**
+- Synthesizes a `search_vector` `TSVECTOR` `GENERATED ALWAYS AS ... STORED` column with a GIN index. **Do not declare `search_vector` yourself.**
+- `search_language` / `search_config` (default `"english"`) — any Postgres FTS config (spanish, french, german, etc.).
+
+```json
+{"search_language": "spanish", "search_config": "spanish",
+ "search_fields": ["titulo", {"field": "cuerpo", "weight": "B"}]}
+```
+
+Query: `?search=project roadmap` or programmatically `{"search_vector__search": "project roadmap"}`.
+
+## Hierarchy & graph
+
+Both store edges in an auto-generated `<table>_edges` companion table (also exposed as its own DataTable). Columns: `id` (UUID), `from_id`/`to_id` (FK → parent, `ON DELETE CASCADE`), `type` (`VARCHAR(50)`), `metadata` (JSONB), `created_at`/`updated_at` (auto-managed on edges only), `created_by_id`. Constraints: `UNIQUE(from_id, to_id, type)`, `CHECK(from_id != to_id)`. Indexes on `(from_id, type)`, `(to_id, type)`, `type`, GIN on `metadata`.
 
 ```json
 {
@@ -167,46 +205,43 @@ Both hierarchy and graph relationships are stored in the same auto-generated `<t
     "graph": {
       "enabled": true,
       "types": [
-        {
-          "name": "manager",
-          "inverse": "reports",
-          "constraints": {"max_outgoing": 1},
-          "description": "Primary reporting line"
-        },
-        {
-          "name": "mentor",
-          "metadata": {"fields": [{"name": "since", "type": "date"}]}
-        }
+        {"name": "manager", "inverse": "reports", "constraints": {"max_outgoing": 1}},
+        {"name": "mentor", "metadata": {"fields": [{"name": "since", "type": "date"}]}}
       ]
     }
   }
 }
 ```
 
-- `hierarchy: true` (boolean flag) — enables hierarchy query semantics (`include=descendants|ancestors` with `depth`).
-- `graph.enabled: true` — enables typed edges via the `<table>_edges` companion table.
-- `graph.types[]` — declare each allowed edge type. Use it for typed metadata fields, edge constraints, and an `inverse` label:
-  - `inverse` — semantic name for the reverse direction. Documentation only; traversal still uses `include=ancestors|descendants` plus the chosen `relationship_type`.
-  - `metadata.fields` — typed fields stored on each edge of this type, queryable via `datatable_edges`.
-  - `constraints.max_outgoing` / `constraints.max_incoming` — cap edges per node (e.g. `max_outgoing: 1` enforces single-manager / tree shape).
+- `hierarchy: true` — enables `include=descendants|ancestors` + `depth` queries.
+- `graph.enabled: true` — typed edges via the companion table.
+- `graph.types[].inverse` — documentation only; traversal still uses `include=ancestors|descendants` + `relationship_type`.
+- `graph.types[].metadata.fields` — typed fields stored on edges, queryable via the edges datatable.
+- `graph.types[].constraints.max_outgoing` / `max_incoming` — cap edges per node (e.g. `max_outgoing: 1` for tree shape).
 
-For a pure tree (single implicit edge type), `hierarchy: true` alone is enough; for a DAG with multiple typed relationships, add the `graph` block. Server caps traversal depth via `DATA_SERVICE_GRAPH_MAX_DEPTH` (default 10). Manipulate edges with `datatable_edges`.
+Pure tree: `hierarchy: true` alone is enough. DAG with multiple typed relationships: add `graph`. Traversal depth capped at 10 (`DATA_SERVICE_GRAPH_MAX_DEPTH`).
+
+## Audit logging
+
+Toggle via `audit_enabled: true` on the resource envelope (not in `schema`). Default `false`. When on, every CRUD mutation (incl. bulk) writes async to a single per-tenant `audit_log` table with `record_id`, `version` (monotonic per record), `event_type` (CREATE/UPDATE/DELETE), `previous_data`, `changed_fields`, `created_by`, `created_at`.
+
+No per-table `<table>_audit`, no row ETag / optimistic concurrency, no CDC / change feed / webhooks.
 
 ## Schema evolution
 
-Resubmitting a datapackage via `create_update_schema` (or `PATCH` on the resource) triggers a migration. The data service classifies each change as safe or destructive:
+Resubmitting via `create_update_schema` (or `PATCH`) triggers a migration. Changes are classified:
 
 | Safe | Destructive — require `allow_data_loss=True` |
 |---|---|
 | Add nullable column | Add NOT NULL column without a default |
-| Add column with `default` | Narrow a column type (e.g. TEXT → VARCHAR(10)) |
-| Drop column (data lost; opt-in via the destructive flag) | Incompatible type cast (e.g. TEXT → INTEGER) |
+| Add column with `default` | Narrow a column type (TEXT → VARCHAR(10)) |
+| Drop column (opt-in via the destructive flag) | Incompatible type cast (TEXT → INTEGER) |
 | Make column nullable | Remove a NOT NULL constraint |
 | Widen a column type | |
 | Add foreign key, index | |
 | Rename column with `x-rename-from` | |
 
-### Column rename (`x-rename-from`)
+### Column rename
 
 ```json
 {"name": "email_address", "type": "string", "x-rename-from": "email"}
@@ -218,86 +253,285 @@ Without the hint, the materializer treats it as drop + add and loses data.
 
 Either supply a `default` (single safe step) or run the three-step pattern: add nullable → populate via `datatable_data` upsert / raw SQL → resubmit with `required: true`.
 
-### Revision history and rollback
+### Revision history & rollback
 
-Every schema operation is recorded with `revision_id`, `executed_sql`, and an auto-generated `rollback_sql`. The data service exposes a rollback endpoint per resource (`POST /api/apps/{slug}/datatables/{table}/rollback/` with `{"revision_id": "..."}`). DDL statements have a server-side timeout of ~30s — split large refactors into smaller steps.
+Every schema operation is recorded with a `revision_id`, the SQL that was executed, an auto-generated inverse SQL, the actor, and outcome telemetry. Rollback is service-level only — execute from a management command, shell, or internal job. DDL statements have a server-side timeout of ~30s — split large refactors into smaller steps.
 
 Rollback caveats: dropped column data is not recoverable; an already-rolled-back operation cannot be rolled back again; type conversions whose backward cast would fail are not rollable.
 
-### Imports vs schema creation
+### Imports
 
-The import workflow uses the same Frictionless data package shape. The REST endpoint accepts `?materialize=true` to create physical tables immediately; without it, only metadata is registered. `create_update_schema` (MCP) always materializes.
+Imports use the same Frictionless data package shape. `create_update_schema` always materializes the physical tables — the MCP tool exposes no `dry_run`, `validate_only`, `force_recreate`, or `allow_data_loss`.
 
 ## Conventions
 
-- **Soft delete** — if a table has a field named `is_deleted` (boolean), `delete` operations through the data service set the flag instead of removing the row.
-- **Auto-managed timestamps** — `created_at` and `updated_at` are populated by the data service when those columns exist. Declare them as `datetime` fields; no extra schema flag needed.
-- **System FK targets** — `auth_user` and `storage_objects` are valid `reference.resource` values for cross-cutting FKs.
+- **Soft delete is a consumer convention.** Declare `is_deleted` and filter on it yourself — `delete` does not soft-update.
+- **`created_at`/`updated_at` are NOT auto-populated** on main tables (only on edges). Declare and set them yourself.
+- **System FK targets:** `auth_user`, `storage_objects`.
+- **PK normalization:** single-column UUID PKs get `gen_random_uuid()` default; single-column integer PKs get `autoincrement: true`; FK fields auto-normalize to UUID when their target is UUID. Composite PKs are exempt.
+- **Cerbos auto-policy:** new tables get a default-DENY + scoped-ALLOW policy (skipped for `x-system-table`); removed on delete.
+- **Reference tables are schema-locked** — cross-app refs sync one-way from the source on `schema_hash` change.
+- **Reflection** can populate metadata from an existing physical table; `preserve_custom_metadata: true` keeps your overlaid descriptions/weights.
 
-## Populate (FK auto-expansion at query time)
+## Populate (query-time FK expansion)
 
-Populate is a **query-time** feature, not a schema feature. To support it, just declare FKs. Consumers (Refine providers, MCP `datatable_data`) can request populated fields via:
+Not a schema feature — just declare FKs. Consumers request expansion via `populate=order,order.customer`. Dots traverse nested FKs; `*` populates all one-hop FKs. **Max populate depth: 3.**
 
-```
-datatable_data(action="query", table_name="line_items", populate="order,order.customer")
-```
+## Limits
 
-Dots traverse nested FKs. Use `*` to populate all one-hop FKs.
+| Limit | Setting | Default |
+|---|---|---|
+| Graph traversal depth | `DATA_SERVICE_GRAPH_MAX_DEPTH` | 10 |
+| Populate / embed nesting depth | `DATA_SERVICE_MAX_POPULATE_DEPTH` / `DATA_SERVICE_MAX_EMBED_DEPTH` | 3 |
+| Distinct FK traversal paths in filters | `DATA_SERVICE_MAX_FILTER_TRAVERSALS` | 5 |
+| Bulk upsert batch size | `DATA_SERVICE_MAX_BULK_UPSERT` | 1000 rows |
+| Bulk insert / update / delete batch size | `DATA_SERVICE_MAX_BULK_*` | configurable |
+| Max page size (list endpoints) | `DATA_SERVICE_MAX_PAGE_SIZE` | 1000 |
+| Rate limit (list) | `DATA_SERVICE_RATE_LIMIT_LIST` | 100/min |
+| Rate limit (list + populate) | `DATA_SERVICE_RATE_LIMIT_LIST_POPULATE` | 10/min |
+| `search_fields` count | — | 10 |
+| Physical table name | — | ≤57 bytes base (`_edges` suffix reserved) |
+| DDL statement timeout | — | ~30s |
 
 ## Common mistakes
 
-See also: Gotchas in SKILL.md for cross-cutting warnings (field dropping, policy replacement, etc.).
+1. Omitting `primaryKey` (required on every table).
+2. Renaming a column without `x-rename-from` (data is lost).
+3. Adding a required column to a populated table without a `default` (destructive without `allow_data_loss=True`).
+4. Narrowing or changing a column type in place (destructive).
+5. FK to a not-yet-materialized table in the same datapackage — order `resources[]` so targets come first.
+6. Forgetting `indexes` on filter/FK columns — only the PK is auto-indexed.
+7. Declaring `search_vector` manually — it's synthesized.
+8. Using `jsonb` provider for an M2M junction (rejected).
+9. A name longer than ~57 bytes after `{app_slug}_` prefix.
 
-1. **Omitting `primaryKey`** — every table must declare one. Single-field PK: `"primaryKey": ["id"]`. Composite: `"primaryKey": ["tenant_id", "order_id"]`.
-2. **Narrowing or changing a column type in place** — classified destructive; rejected without `allow_data_loss=True`. Validate existing values fit the new type before forcing the flag, or add a new column, migrate, drop.
-3. **Adding a required column to a populated table without a `default`** — fails unless you set `allow_data_loss=True`. Prefer the safe pattern: declare with a `default` (one step), or add nullable → populate → resubmit with `required: true`.
-4. **Foreign key to a not-yet-materialized table in the same datapackage** — order `resources[]` so referenced tables come first, or submit them in separate `create_update_schema` calls.
-5. **Forgetting `indexes` on frequently-filtered columns** — Taruvi only auto-indexes the PK. Add explicit indexes for filter/sort columns; required for FK columns you'll traverse via `?fk.field=...`.
-6. **Renaming without `x-rename-from`** — the materializer treats a name change as drop + add and loses the column data. Always include the hint.
+## Not implemented
 
-## Worked example: blog schema
+Don't try to use: Frictionless `uniqueKeys` (use a unique `indexes` entry instead), `missingValues`, `trueValues`/`falseValues`, `bareNumber`, `groupChar`, `decimalChar`, `dialect`; constraints `exclusiveMinimum`/`exclusiveMaximum`, `multipleOf`, `uniqueItems`; generic computed columns (only `search_vector`); MCP `dry_run`/`validate_only`/`force_recreate`/`allow_data_loss`; CDC / webhooks / row ETag.
+
+## Comprehensive example
+
+A single datapackage exercising every supported attribute. Each numbered tag like `[1]` in the description below maps to a feature used in the JSON.
 
 ```json
 {
+  "name": "blog_platform",                                                  // [1]
+  "title": "Blog Platform",                                                 // [1]
+  "description": "Authors, posts, comments, tags",                          // [1]
   "resources": [
+
     {
-      "name": "authors",
+      "name": "departments",                                                // [2]
+      "title": "Departments",                                               // [2]
+      "schema_format": "frictionless",                                      // [3]
+      "provider_type": "flat_table",                                        // [3]
+      "provider_config": {},                                                // [3]
+      "hierarchy": true,                                                    // [4] resource-level convenience
       "schema": {
         "fields": [
-          {"name": "id", "type": "string", "format": "uuid", "constraints": {"required": true}},
-          {"name": "name", "type": "string", "constraints": {"required": true, "maxLength": 255}},
-          {"name": "bio", "type": "string"}
+          {"name": "id", "type": "string", "format": "uuid",
+           "constraints": {"required": true}},
+          {"name": "name", "type": "string",
+           "constraints": {"required": true, "maxLength": 120, "unique": true}}
         ],
-        "primaryKey": ["id"]
+        "primaryKey": ["id"],
+        "graph": {                                                          // [4]
+          "enabled": true,
+          "types": [
+            {"name": "parent", "inverse": "children",
+             "constraints": {"max_outgoing": 1},
+             "description": "Reporting line; tree-shaped"},
+            {"name": "collaborates_with",
+             "metadata": {"fields": [{"name": "since", "type": "date"}]}}
+          ]
+        }
       }
     },
+
+    {
+      "name": "authors",
+      "audit_enabled": true,                                                // [5]
+      "schema": {
+        "fields": [
+          {"name": "id", "type": "string", "format": "uuid",
+           "constraints": {"required": true}},
+          {"name": "department_id", "type": "string", "format": "uuid"},
+          {"name": "email", "type": "string", "format": "email",            // [6]
+           "constraints": {"required": true, "unique": true,
+                           "pattern": "^[^@]+@[^@]+\\.[^@]+$"}},            // [7]
+          {"name": "display_name", "type": "string",
+           "title": "Display name",                                         // [8]
+           "description": "Shown publicly on posts",                        // [8]
+           "constraints": {"required": true, "minLength": 2, "maxLength": 80}},
+          {"name": "bio", "type": "string"},
+          {"name": "website", "type": "string", "format": "uri"},
+          {"name": "follower_count", "type": "integer",
+           "default": 0,                                                    // [9]
+           "constraints": {"minimum": 0, "maximum": 10000000}},
+          {"name": "tier", "type": "string", "default": "free",
+           "constraints": {"enum": ["free", "pro", "enterprise"]}},
+          {"name": "is_verified", "type": "boolean", "default": false},
+          {"name": "metadata", "type": "object"},
+          {"name": "social_handles", "type": "array",
+           "arrayItem": {"type": "string"}},                                // [10]
+          {"name": "active_hours", "type": "any",
+           "x-pg-type": "tstzrange"},                                       // [11]
+          {"name": "joined_on", "type": "date"},
+          {"name": "preferred_notification_time", "type": "time"},
+          {"name": "created_at", "type": "datetime"},
+          {"name": "updated_at", "type": "datetime"},
+          {"name": "legacy_user_id", "type": "string",
+           "x-rename-from": "old_uid"}                                      // [12]
+        ],
+        "primaryKey": ["id"],
+        "foreignKeys": [
+          {"fields": ["department_id"],
+           "reference": {"resource": "departments", "fields": ["id"]},
+           "x-actions": {"onDelete": "SET NULL"}}                           // [13]
+        ],
+        "indexes": [
+          {"name": "idx_authors_tier_active",
+           "fields": ["tier", "is_verified"]},
+          {"name": "idx_authors_email_lower",
+           "expression": "LOWER(email)", "unique": true},                   // [14]
+          {"name": "idx_authors_active_only",
+           "fields": ["created_at"], "where": "is_verified = true"},        // [15]
+          {"name": "idx_authors_metadata",
+           "fields": ["metadata"], "type": "gin"}                           // [16]
+        ],
+        "search_fields": [                                                  // [17]
+          {"field": "display_name", "weight": "A"},
+          {"field": "bio", "weight": "B"}
+        ],
+        "search_language": "english",
+        "search_config": "english"
+      }
+    },
+
     {
       "name": "posts",
       "schema": {
         "fields": [
-          {"name": "id", "type": "string", "format": "uuid", "constraints": {"required": true}},
-          {"name": "author_id", "type": "string", "format": "uuid", "constraints": {"required": true}},
-          {"name": "title", "type": "string", "constraints": {"required": true, "maxLength": 500}},
+          {"name": "id", "type": "string", "format": "uuid",
+           "constraints": {"required": true}},
+          {"name": "author_id", "type": "string", "format": "uuid",
+           "constraints": {"required": true}},
+          {"name": "owner_user_id", "type": "string", "format": "uuid"},
+          {"name": "cover_file_id", "type": "string", "format": "uuid"},
+          {"name": "title", "type": "string",
+           "constraints": {"required": true, "maxLength": 500}},
+          {"name": "slug", "type": "string",
+           "constraints": {"required": true, "unique": true,
+                           "pattern": "^[a-z0-9-]+$"}},
           {"name": "body", "type": "string"},
-          {"name": "status", "type": "string", "constraints": {"enum": ["draft", "published"]}},
-          {"name": "tags", "type": "array"},
+          {"name": "status", "type": "string", "default": "draft",
+           "constraints": {"enum": ["draft", "published", "archived"]}},
+          {"name": "view_count", "type": "integer", "default": 0,
+           "constraints": {"minimum": 0}},
+          {"name": "rating", "type": "number",
+           "constraints": {"minimum": 0, "maximum": 5}},
+          {"name": "tags_cache", "type": "array",
+           "arrayItem": {"type": "string"}},
           {"name": "published_at", "type": "datetime"},
-          {"name": "created_at", "type": "datetime", "constraints": {"required": true}}
+          {"name": "score_range", "type": "any",
+           "x-pg-type": "numrange"}
         ],
         "primaryKey": ["id"],
         "foreignKeys": [
-          {"fields": ["author_id"], "reference": {"resource": "authors", "fields": ["id"]}}
+          {"fields": ["author_id"],
+           "reference": {"resource": "authors", "fields": ["id"]},
+           "x-actions": {"onDelete": "CASCADE"}},
+          {"fields": ["owner_user_id"],
+           "reference": {"resource": "auth_user", "fields": ["id"]},        // [18]
+           "x-actions": {"onDelete": "SET NULL"}},
+          {"fields": ["cover_file_id"],
+           "reference": {"resource": "storage_objects", "fields": ["id"]},  // [18]
+           "x-actions": {"onDelete": "SET NULL"}}
         ],
         "indexes": [
-          {"name": "idx_status_pub", "fields": ["status", "published_at"]},
-          {"name": "idx_author", "fields": ["author_id"]}
+          {"name": "idx_posts_status_pub",
+           "fields": ["status", "published_at"]},
+          {"name": "idx_posts_author", "fields": ["author_id"]}
         ],
         "search_fields": [
           {"field": "title", "weight": "A"},
           {"field": "body", "weight": "B"}
+        ],
+        "manyToManyRelationships": [                                        // [19]
+          {"name": "tags", "foreignTable": "blog_platform_tags",
+           "junctionTable": "blog_platform_post_tags",
+           "junctionLocalKey": "post_id", "junctionForeignKey": "tag_id",
+           "localKey": "id", "foreignKey": "id"}
+        ],
+        "reverseRelationships": [                                           // [20]
+          {"name": "comments", "type": "hasMany",
+           "foreignTable": "blog_platform_comments",
+           "foreignKey": "post_id", "localKey": "id"}
+        ]
+      }
+    },
+
+    {
+      "name": "tags",
+      "schema": {
+        "fields": [
+          {"name": "id", "type": "string", "format": "uuid",
+           "constraints": {"required": true}},
+          {"name": "label", "type": "string",
+           "constraints": {"required": true, "unique": true, "maxLength": 60}}
+        ],
+        "primaryKey": ["id"]
+      }
+    },
+
+    {
+      "name": "post_tags",                                                  // [21] junction
+      "schema": {
+        "fields": [
+          {"name": "post_id", "type": "string", "format": "uuid",
+           "constraints": {"required": true}},
+          {"name": "tag_id", "type": "string", "format": "uuid",
+           "constraints": {"required": true}}
+        ],
+        "primaryKey": ["post_id", "tag_id"],                                // [22]
+        "foreignKeys": [
+          {"fields": ["post_id"],
+           "reference": {"resource": "posts", "fields": ["id"]},
+           "x-actions": {"onDelete": "CASCADE"}},
+          {"fields": ["tag_id"],
+           "reference": {"resource": "tags", "fields": ["id"]},
+           "x-actions": {"onDelete": "CASCADE"}}
+        ]
+      }
+    },
+
+    {
+      "name": "comments",
+      "schema": {
+        "fields": [
+          {"name": "id", "type": "string", "format": "uuid",
+           "constraints": {"required": true}},
+          {"name": "post_id", "type": "string", "format": "uuid",
+           "constraints": {"required": true}},
+          {"name": "reviewer_id", "type": "string", "format": "uuid"},
+          {"name": "body", "type": "string",
+           "constraints": {"required": true, "minLength": 1}},
+          {"name": "is_deleted", "type": "boolean", "default": false}       // [23]
+        ],
+        "primaryKey": ["id"],
+        "foreignKeys": [
+          {"fields": ["post_id"],
+           "reference": {"resource": "posts", "fields": ["id"]},
+           "x-actions": {"onDelete": "CASCADE"}},
+          {"fields": ["reviewer_id"],
+           "reference": {"resource": "moderation:reviewers", "fields": ["id"]}, // [24]
+           "x-actions": {"onDelete": "NO ACTION"}}
         ]
       }
     }
+
   ]
 }
 ```
+
+Inline `// [N]` markers point back to the corresponding section above for each feature: envelope/resource keys, `hierarchy`/`graph`, `audit_enabled`, field `format`/`constraints`/`default`/`arrayItem`/`x-pg-type`/`x-rename-from`, FKs with `x-actions` and cross-app `app:table` refs, system FK targets (`auth_user`, `storage_objects`), expression/partial/GIN indexes, weighted `search_fields`, `manyToManyRelationships`, `reverseRelationships` manual override, junction tables, composite `primaryKey`, and the `is_deleted` consumer convention.

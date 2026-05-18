@@ -1,22 +1,19 @@
 ---
 name: taruvi-refine-providers
 description: >
-  Use this skill for any Refine.dev frontend work on a Taruvi app — wiring data
-  providers (data/storage/app/user), authProvider, accessControlProvider; using
-  Refine hooks (`useList`, `useOne`, `useCreate`, `useUpdate`, `useDelete`,
-  `useUpdateMany`, `useDeleteMany`, `useCustom`, `useCan`, `CanAccess`,
-  `useDataGrid`, `useForm`, `useShow`, `useNotification`); building list pages,
-  detail views, dashboards, KPI cards, charts, file managers, attachment lists,
-  media galleries, network-backed dropdowns/autocompletes; calling Taruvi
-  functions and analytics queries from the frontend; debugging 401/403, token
-  refresh, redirect loops, permission check failures, or any frontend Taruvi
-  bug. Activate on any Refine/React work in a Taruvi project, even when the
-  user doesn't say "providers" — phrases like "build a list page", "add a
-  dashboard", "upload files", "call a function from the frontend", "wire up
-  auth", "useCan", "dataProvider", "@taruvi/refine-providers", "@taruvi/sdk",
-  "@refinedev/core", `VITE_TARUVI_*`, or "Taruvi React app" all trigger this
-  skill. Skip when the work is purely backend Python function bodies, MCP
-  provisioning, schema/policy authoring, or running raw SQL (use
+  Use this skill for any Refine.dev frontend work on a Taruvi app — wiring
+  data/storage/app/user providers, authProvider, accessControlProvider; using
+  Refine hooks against Taruvi (CRUD, useCustom, useCan, useDataGrid, useForm);
+  building list pages, detail views, dashboards, KPI cards, charts, file
+  managers, network-backed autocompletes; calling Taruvi functions and
+  analytics queries from the frontend; debugging 401/403, token refresh,
+  redirect loops, or permission check failures. Activate on any Refine/React
+  work in a Taruvi project even when the user doesn't say "providers" —
+  phrases like "build a list page", "add a dashboard", "upload files", "call
+  a function from the frontend", "wire up auth", "dataProvider",
+  "@taruvi/refine-providers", "@taruvi/sdk", `VITE_TARUVI_*`, or "Taruvi React
+  app" all trigger this skill. Skip when the work is backend Python function
+  bodies, MCP provisioning, schema/policy authoring, or raw SQL (use
   `taruvi-app-developer` instead).
 metadata:
   author: taruvi-ai

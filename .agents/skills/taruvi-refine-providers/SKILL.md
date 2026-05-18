@@ -1,20 +1,16 @@
 ---
 name: taruvi-refine-providers
 description: >
-  Use this skill for any Refine.dev frontend work on a Taruvi app — wiring
-  data/storage/app/user providers, authProvider, accessControlProvider; using
-  Refine hooks against Taruvi (CRUD, useCustom, useCan, useDataGrid, useForm);
-  building list pages, detail views, dashboards, KPI cards, charts, file
-  managers, network-backed autocompletes; calling Taruvi functions and
-  analytics queries from the frontend; debugging 401/403, token refresh,
-  redirect loops, or permission check failures. Activate on any Refine/React
-  work in a Taruvi project even when the user doesn't say "providers" —
-  phrases like "build a list page", "add a dashboard", "upload files", "call
-  a function from the frontend", "wire up auth", "dataProvider",
-  "@taruvi/refine-providers", "@taruvi/sdk", `VITE_TARUVI_*`, or "Taruvi React
-  app" all trigger this skill. Skip when the work is backend Python function
-  bodies, MCP provisioning, schema/policy authoring, or raw SQL (use
-  `taruvi-app-developer` instead).
+  Refine.dev frontend work on a Taruvi app: wiring data/storage/app/user
+  providers, authProvider, accessControlProvider; Refine hooks against Taruvi
+  (CRUD, useCustom, useCan, useDataGrid, useForm); building list pages,
+  dashboards, KPI cards, file managers, network-backed autocompletes; calling
+  Taruvi functions and analytics from the frontend; debugging 401/403, token
+  refresh, redirect loops, or permission failures. Triggers: any Refine/React
+  work in a Taruvi project, "build a list page", "add a dashboard", "wire up
+  auth", "dataProvider", "@taruvi/refine-providers", `VITE_TARUVI_*`. Skip
+  for backend Python, MCP provisioning, schemas, policies, or raw SQL — use
+  `taruvi-app-developer` instead.
 metadata:
   author: taruvi-ai
   version: "2.0.0"

@@ -1,18 +1,15 @@
 ---
 name: taruvi-app-developer
 description: >
-  Use this skill for any backend work on a Taruvi app — provisioning
-  datatables (Frictionless schemas), Cerbos policies, roles, users, buckets,
-  secrets, analytics queries, or audited raw SQL via the Taruvi MCP server;
-  and authoring Python function bodies that run in the Taruvi function
-  runtime (`def main(params, user_data, sdk_client)`), including
+  Backend work on a Taruvi app: provisioning datatables, Cerbos policies,
+  roles, users, buckets, secrets, analytics queries, or raw SQL via the
+  Taruvi MCP server; and authoring Python function bodies that run in the
+  Taruvi function runtime (`def main(params, user_data, sdk_client)`) for
   multi-resource cascades, event/cron handlers, public webhooks, and external
-  API calls with stored secrets. Activate on phrases like "create a
-  datatable", "Frictionless schema", "Cerbos policy", "manage_function",
-  "execute_function", "serverless function", "scheduled job",
-  "create_update_schema", "execute_raw_sql", "analytics query", "sdk_client",
-  or any Python code that references the Taruvi runtime. Skip when the work
-  is Refine frontend wiring (use `taruvi-refine-providers` instead).
+  API calls. Triggers: "create a datatable", "Frictionless schema", "Cerbos
+  policy", "serverless function", "scheduled job", "analytics query",
+  "sdk_client", `manage_function`, `execute_raw_sql`. Skip for Refine
+  frontend work — use `taruvi-refine-providers` instead.
 license: Apache-2.0
 compatibility: >
   Requires the Taruvi MCP server for provisioning tasks (tools prefixed

@@ -163,14 +163,14 @@ export const taruviTokens = {
     focusRing: '0 0 0 3px rgba(30,136,229,0.12)',
   },
 
-  // Border radii (exactly as in the design system)
+  // Border radii (toned down ~50% from the design-system defaults)
   radius: {
     none: 0,
-    sm: 6,    // tooltip
-    md: 8,    // buttons, icon-button, sidebar items
-    lg: 10,   // form inputs, status messages, icon-item cards
-    xl: 12,   // navbars, sidebar containers, table wrapper
-    xxl: 16,  // cards, TOC
+    sm: 3,    // tooltip                          (orig 6)
+    md: 4,    // buttons, icon-button, sidebar    (orig 8)
+    lg: 6,    // form inputs, status messages     (orig 10)
+    xl: 8,    // navbars, sidebar containers      (orig 12)
+    xxl: 10,  // cards, TOC                       (orig 16)
     pill: 999,
     avatar: 9999,
   },

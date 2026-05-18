@@ -789,8 +789,8 @@ const componentOverrides = (mode: 'light' | 'dark'): ThemeOptions['components'] 
     MuiListItemText: {
       styleOverrides: {
         primary: {
-          fontFamily: FONT_TITLE,
-          fontWeight: 600,
+          fontFamily: FONT_BODY,
+          fontWeight: 400,
           fontSize: taruviTokens.fontSize.h6,
         },
       },

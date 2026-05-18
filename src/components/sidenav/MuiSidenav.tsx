@@ -5,13 +5,17 @@ import Drawer from "@mui/material/Drawer";
 import List from "@mui/material/List";
 import Divider from "@mui/material/Divider";
 import IconButton from "@mui/material/IconButton";
+import InputAdornment from "@mui/material/InputAdornment";
 import ListItemButton from "@mui/material/ListItemButton";
 import ListItemIcon from "@mui/material/ListItemIcon";
 import ListItemText from "@mui/material/ListItemText";
+import TextField from "@mui/material/TextField";
+import Typography from "@mui/material/Typography";
 import MenuIcon from "@mui/icons-material/Menu";
 import ChevronLeftIcon from "@mui/icons-material/ChevronLeft";
 import Dashboard from "@mui/icons-material/Dashboard";
 import Logout from "@mui/icons-material/Logout";
+import SearchIcon from "@mui/icons-material/Search";
 
 import {
   useMenu,
@@ -19,6 +23,7 @@ import {
   useIsExistAuthentication,
   useTranslate,
   useWarnAboutChange,
+  type TreeMenuItem,
 } from "@refinedev/core";
 
 import { MenuItem } from "./MenuItem";
@@ -50,6 +55,7 @@ interface MuiSidenavProps {
 
 export const MuiSidenav: React.FC<MuiSidenavProps> = ({ meta }) => {
   const [expanded, setExpanded] = useState(false);
+  const [searchQuery, setSearchQuery] = useState("");
   const navigate = useNavigate();
   const location = useLocation();
   const t = useTranslate();
@@ -60,8 +66,25 @@ export const MuiSidenav: React.FC<MuiSidenavProps> = ({ meta }) => {
   const { warnWhen, setWarnWhen } = useWarnAboutChange();
 
   const handleToggle = () => {
+    if (expanded) setSearchQuery("");
     setExpanded(!expanded);
   };
+
+  const normalizedQuery = searchQuery.trim().toLowerCase();
+  const matchesQuery = (text?: string) =>
+    !normalizedQuery || (text ?? "").toLowerCase().includes(normalizedQuery);
+
+  const itemMatchesQuery = (item: TreeMenuItem): boolean => {
+    if (matchesQuery(item.label || item.name)) return true;
+    return Boolean(item.children?.some(itemMatchesQuery));
+  };
+
+  const filteredMenuItems = normalizedQuery
+    ? menuItems.filter(itemMatchesQuery)
+    : menuItems;
+
+  const dashboardLabel = t("dashboard.title", "Dashboard");
+  const showDashboard = !normalizedQuery || matchesQuery(dashboardLabel);
 
   const handleNavigate = useCallback(
     (route: string) => {
@@ -120,10 +143,12 @@ export const MuiSidenav: React.FC<MuiSidenavProps> = ({ meta }) => {
           m: 0,
           mt: expanded ? 0 : 0.5,
           textAlign: expanded ? "left" : "center",
+          "& .MuiListItemText-primary": {
+            fontSize: expanded ? 12 : 10,
+            fontWeight: isDashboardSelected ? 600 : 500,
+          },
         }}
         primaryTypographyProps={{
-          fontSize: expanded ? 14 : 10,
-          fontWeight: isDashboardSelected ? 600 : 500,
           noWrap: expanded,
           whiteSpace: expanded ? "nowrap" : "pre",
         }}
@@ -160,10 +185,12 @@ export const MuiSidenav: React.FC<MuiSidenavProps> = ({ meta }) => {
           m: 0,
           mt: expanded ? 0 : 0.5,
           textAlign: expanded ? "left" : "center",
+          "& .MuiListItemText-primary": {
+            fontSize: expanded ? 12 : 10,
+            fontWeight: 500,
+          },
         }}
         primaryTypographyProps={{
-          fontSize: expanded ? 14 : 10,
-          fontWeight: 500,
           noWrap: expanded,
           whiteSpace: expanded ? "nowrap" : "pre",
         }}
@@ -200,15 +227,35 @@ export const MuiSidenav: React.FC<MuiSidenavProps> = ({ meta }) => {
             height: "100%",
           }}
         >
-          {/* Toggle Button */}
+          {/* Toggle + Search */}
           <Box
             sx={{
               display: "flex",
               alignItems: "center",
-              justifyContent: expanded ? "flex-end" : "center",
+              gap: 1,
               p: 1,
+              justifyContent: expanded ? "flex-start" : "center",
             }}
           >
+            {expanded && (
+              <TextField
+                size="small"
+                placeholder={t("search.placeholder", "Search")}
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                InputProps={{
+                  startAdornment: (
+                    <InputAdornment position="start">
+                      <SearchIcon fontSize="small" />
+                    </InputAdornment>
+                  ),
+                }}
+                sx={{
+                  flex: 1,
+                  "& .MuiOutlinedInput-root": { fontSize: 13 },
+                }}
+              />
+            )}
             <IconButton onClick={handleToggle}>
               {expanded ? <ChevronLeftIcon /> : <MenuIcon />}
             </IconButton>
@@ -219,10 +266,10 @@ export const MuiSidenav: React.FC<MuiSidenavProps> = ({ meta }) => {
           {/* Menu Items */}
           <List sx={{ flexGrow: 1, overflowY: "auto", overflowX: "hidden", py: 1 }}>
             {/* Dashboard */}
-            {dashboardButton}
+            {showDashboard && dashboardButton}
 
             {/* Resource Menu Items */}
-            {menuItems.map((item, index) => (
+            {filteredMenuItems.map((item, index) => (
               <MenuItem
                 key={`${item.key || item.route || item.name || "menu-item"}-${index}`}
                 item={item}
@@ -231,6 +278,14 @@ export const MuiSidenav: React.FC<MuiSidenavProps> = ({ meta }) => {
                 onNavigate={handleNavigate}
               />
             ))}
+
+            {expanded && normalizedQuery && !showDashboard && filteredMenuItems.length === 0 && (
+              <Box sx={{ px: 2, py: 2, textAlign: "center" }}>
+                <Typography variant="caption" color="text.secondary">
+                  {t("search.empty", "No matches")}
+                </Typography>
+              </Box>
+            )}
           </List>
 
           {/* Logout */}

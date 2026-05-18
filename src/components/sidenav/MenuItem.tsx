@@ -87,10 +87,12 @@ export const MenuItem: React.FC<MenuItemProps> = ({
           m: 0,
           mt: expanded ? 0 : 0.5,
           textAlign: expanded ? "left" : "center",
+          "& .MuiListItemText-primary": {
+            fontSize: expanded ? 12 : 10,
+            fontWeight: isSelected ? 600 : 500,
+          },
         }}
         primaryTypographyProps={{
-          fontSize: expanded ? 14 : 10,
-          fontWeight: isSelected ? 600 : 500,
           noWrap: expanded,
           whiteSpace: expanded ? "nowrap" : "pre",
         }}

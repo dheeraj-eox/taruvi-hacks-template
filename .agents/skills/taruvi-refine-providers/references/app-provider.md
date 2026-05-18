@@ -78,7 +78,9 @@ useCustom({
 
 ## Execute Analytics Queries
 
-Use `useCustom` with `meta.kind: "analytics"`. The `url` is the query slug.
+**Prefer the datatable provider first.** `useList` with `meta.aggregate` + `meta.groupBy` (and `meta.populate` for related fields) covers single-table metrics and most cross-table cases on Taruvi datatables. Reach for analytics queries only when (a) the source is an **external database** or (b) the SQL truly cannot be expressed via the data provider — multi-table joins with grouped aggregation, window functions, recursive CTEs.
+
+When one of those applies, use `useCustom` with `meta.kind: "analytics"`. The `url` is the query slug.
 
 ```tsx
 const { data } = useCustom({
@@ -89,8 +91,6 @@ const { data } = useCustom({
   meta: { kind: "analytics" },
 });
 ```
-
-For dashboard elements that need data from 2+ tables, use analytics queries instead of multiple datatable calls.
 
 **Dashboard example:**
 ```tsx

@@ -1,8 +1,16 @@
 # Analytics queries
 
-Analytics queries are named, parameterized SQL statements stored as first-class Taruvi resources. They can be executed on demand, cached, and consumed by Refine via the `app` data provider.
+Analytics queries are named, parameterized SQL statements stored as first-class Taruvi resources. They can be executed on demand, cached, and consumed by Refine via the `app` data provider, or by a function body via `sdk_client.analytics.execute(...)`.
 
-**When to use:** Analytics queries are required when a dashboard element needs data from 2 or more tables. For single-table aggregates, use the datatable provider with `aggregate`/`groupBy` instead.
+**Default to the datatable provider, not this.** `useList` with `meta.aggregate` + `meta.groupBy` (and `meta.populate` for related fields) — or `sdk_client.database.from_(...).aggregate(...).group_by(...)` from a function — covers single-table metrics and most cross-table cases on Taruvi datatables without registering anything.
+
+**Use an analytics query only when one of these is true:**
+
+- The source is an **external database** (Postgres, MySQL, Redshift, Elasticsearch, ClickHouse) — `connection_type="external"` plus a credential secret.
+- The SQL genuinely cannot be expressed via the datatable provider — multi-table joins with grouped aggregation, window functions (`OVER`, `PARTITION BY`, `ROW_NUMBER`), recursive CTEs, complex Jinja-driven conditional filters.
+- The query is reused across many places and benefits from a named, parameterized, cacheable contract.
+
+If neither applies, build it on the datatable provider. Registering and maintaining an analytics query is more moving parts (a separate resource, a Cerbos `query:<slug>` policy, a coordinated update when columns change) — pay that cost only when it's earning its keep.
 
 ## Registering a query
 

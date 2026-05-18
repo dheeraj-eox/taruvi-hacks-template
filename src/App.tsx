@@ -101,7 +101,12 @@ const AppContent = () => {
                         key="authenticated-inner"
                         fallback={<LoginRedirect />}
                       >
-                        <ThemedLayout Header={() => null} Sider={CustomSider} initialSiderCollapsed={true}>
+                        <ThemedLayout
+                          Header={() => null}
+                          Sider={CustomSider}
+                          initialSiderCollapsed={true}
+                          childrenBoxProps={{ sx: { p: 0 } }}
+                        >
                           <Box sx={{ ml: { xs: 0, md: '72px' }, transition: 'margin-left 0.2s ease-in-out' }}>
                             <ErrorBoundary>
                               <Outlet />

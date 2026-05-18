@@ -727,7 +727,6 @@ const componentOverrides = (mode: 'light' | 'dark'): ThemeOptions['components'] 
         root: {
           minHeight: taruviTokens.size.navHeight,      // 64px
           boxShadow: taruviTokens.shadow.nav,
-          borderRadius: taruviTokens.radius.xl,
         },
       },
     },

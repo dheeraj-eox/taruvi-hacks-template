@@ -141,18 +141,6 @@ The theme styles components but doesn't dictate page composition. Use these patt
 </Container>
 ```
 
-### 4.2 Section
-
-```tsx
-<Box component="section" sx={{ mb: 8 }}>  {/* 64px section gap */}
-  <Typography variant="h2" sx={{ mb: 1 }}>Section title</Typography>
-  <Typography variant="body2" sx={{ color: 'text.disabled', fontStyle: 'italic', mb: 3.5 }}>
-    Section subtitle (italic, muted, mb 28px)
-  </Typography>
-  <Card>…</Card>
-</Box>
-```
-
 ### 4.3 Form layout
 
 Single-column by default; 2-column only for related paired inputs (Start/End, Status/Priority, City/Country). The theme handles input visuals — this section covers what you do by hand.
@@ -215,25 +203,7 @@ Single-column by default; 2-column only for related paired inputs (Start/End, St
 
 ### 4.4 Hero / cover gradient
 
-Used on the Home/landing page only:
-
-```tsx
-const coverBg = "linear-gradient(135deg, #dce9f5 0%, #5ab4f0 60%, #2b97ff 100%)";  // light
-const coverBgDark = "linear-gradient(135deg, #002A3C 0%, #004369 55%, #056A8F 100%)";  // dark
-```
-
-Pair with `cover-title` typography: **Quicksand 300, 58px, line-height 1.15, letter-spacing -0.01em, white**.
-
-### 4.5 Footer band
-
-```tsx
-<Box sx={{
-  bgcolor: '#004369', color: '#9de5fd', textAlign: 'center', py: 3,
-  fontFamily: 'Quicksand', fontSize: 13, fontWeight: 600, letterSpacing: '0.04em',
-}}>
-  Taruvi · Built with Quicksand &amp; Open Sans
-</Box>
-```
+Used on the Home page only — see [`src/pages/home/index.tsx`](src/pages/home/index.tsx) for the canonical example (sky-blue gradient + Quicksand 300 cover title).
 
 ### 4.6 Empty states — four variants
 
@@ -452,7 +422,7 @@ The design system specifies how each column type should behave. Apply these when
 | **Status** | Left | `<Chip>` from §3 — never a plain colored dot or text |
 | **Selection** (bulk-action checkbox) | **Left** edge | First column, fixed narrow width |
 | **Actions** (icon-only buttons) | **Right** edge | Last column, fixed narrow width. Tooltip on every icon. |
-| **Avatar + name** | Left | 30px avatar (from §8) + name on one line; if the name links to the show page, render as a link, not the row click |
+| **Avatar + name** | Left | 30px avatar (`sx={{ width: 30, height: 30, fontSize: 11 }}`) + name on one line; if the name links to the show page, render as a link, not the row click |
 
 **Column count:** keep visible columns to **5–6 optimal**. More columns → use a column picker, condense to fewer, or move secondary data to the show page.
 
@@ -540,53 +510,23 @@ import EditIcon from '@mui/icons-material/Edit';
 
 ### Icon size standards
 
-| Context | Size | Example |
-|---|---|---|
-| Inline / compact | 20px | `<Icon sx={{ fontSize: 20 }} />` |
-| Standard (buttons, nav) | 24px | default MUI size |
-| Feature card / empty state | 32px+ | `<Icon sx={{ fontSize: 48 }} />` |
-
-The CSS-based `<span class="material-icons-round">name</span>` font is also loaded in `index.html`, so if you need to render Material Icons by string name (e.g. dynamic icons from API data) you can use the span fallback.
-
----
-
-## 6. NavKit variants
-
-`@taruvi/navkit` provides the top navigation. The design system defines three variants:
-
-| Variant | Background | Text / icons | Border / accent |
-|---|---|---|---|
-| Blue (default) | `#2b97ff` | White | — |
-| White | `#ffffff` | `#101828` | Border `#e5e7eb` |
-| Dark | `#004369` | `#9de5fd` (accent) | — |
-
-NavKit handles its own theming via the `getTheme` callback in [App.tsx](src/App.tsx) — pick the variant in NavKit settings, not in the MUI theme.
-
----
-
-## 7. Sidebar dimensions
-
-The design specifies fixed widths:
-
-| State | Width |
-|---|---|
-| Collapsed | 72px |
-| Expanded | 240px (template uses 240 — design ref shows 200) |
-
-These are constants in [MuiSidenav.tsx](src/components/sidenav/MuiSidenav.tsx): `DRAWER_WIDTH_EXPANDED` / `DRAWER_WIDTH_COLLAPSED`. Active items already pick up the `#1976d2` brand via the theme.
-
----
-
-## 8. Avatars in tables vs. nav
-
 | Context | Size |
 |---|---|
-| In a table row | **30px** — set explicitly: `<Avatar sx={{ width: 30, height: 30, fontSize: 11 }}>SJ</Avatar>` |
-| In the nav bar / sidebar | **34px** — theme default, no overrides needed |
+| Inline / compact | 20px |
+| Standard (buttons, nav) | 24px (MUI default) |
+| Feature card / empty state | 32px+ |
 
 ---
 
-## 9. Charts (Recharts / Chart.js / canvas)
+## 6. NavKit & sidebar
+
+NavKit (top nav, from `@taruvi/navkit`) ships three color variants — Blue `#2b97ff` (default), White (`#fff` + `#e5e7eb` border), Dark `#004369` (accent `#9de5fd`). Pick the variant in NavKit's `getTheme` callback in [`src/App.tsx`](src/App.tsx), not the MUI theme.
+
+Sidebar widths are constants in [`src/components/sidenav/MuiSidenav.tsx`](src/components/sidenav/MuiSidenav.tsx): collapsed 72px, expanded 240px. Active items pick up `#1976d2` via the theme.
+
+---
+
+## 7. Charts (Recharts / Chart.js / canvas)
 
 MUI theme cannot reach into Recharts. Use the **chart palette** explicitly from `taruviTokens.status`:
 
@@ -610,25 +550,13 @@ const chartColors = {
 - **Chart title**: Quicksand 600 16–18px, top-left aligned
 - **Subtitle**: Open Sans 12–13px, `#666`
 
-### Heatmap palette
+## 8. WCAG / accessibility
 
-Bicolor interpolation: light corner `rgb(230,245,254)` → mid `rgb(25,139,229)` → dark `rgb(0,55,181)`. Render text at `#fff` for cells > 60% of max, `#003652` otherwise.
-
----
-
-## 10. WCAG / accessibility
-
-| Level | Contrast ratio |
-|---|---|
-| AA (text) | min 4.5 : 1 |
-| AAA (text) | 7 : 1 |
-| Chart elements | min 3 : 1 |
-
-Verify charts with Color Oracle or Coblis (color-blindness simulators). The chip palette is already AA-compliant against the design backgrounds; the chart palette is AA against white.
+WCAG AA = 4.5:1 contrast on text, 3:1 on chart elements. The theme tokens and chip palette are AA-compliant against the design backgrounds — don't override colors blindly.
 
 ---
 
-## 11. Where things live
+## 9. Where things live
 
 | What | Where |
 |---|---|

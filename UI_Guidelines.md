@@ -83,66 +83,49 @@ These aren't bugs; the design intentionally separates *brand* tones (palette swa
 
 ## 3. Status chip semantic mapping
 
-`MuiChip` only ships `default | primary | secondary | error | info | success | warning`. The design system has six status chips. Map them as follows:
+`MuiChip` ships 4 status-friendly color slots; map the design system's 6 statuses onto them. ON HOLD and TO DO have no slot — pass `sx` colors directly.
 
-| Chip in design system | MUI usage | Notes |
-|---|---|---|
-| COMPLETE / ACTIVE | `<Chip color="success" label="COMPLETE" />` | Background `#388e3c` (already overridden) |
-| IN PROGRESS | `<Chip color="info" label="IN PROGRESS" />` | Background `#1976d2` (already overridden) |
-| REVIEW / PLANNING | `<Chip color="warning" label="REVIEW" />` | Background `#f57c00` (already overridden) |
-| DELAYED / CANCELLED | `<Chip color="error" label="DELAYED" />` | Background `#c2185b` (already overridden) |
-| **ON HOLD** | `<Chip label="ON HOLD" sx={{ bgcolor: '#7b1fa2', color: '#fff' }} />` | No MUI color slot — use `sx` |
-| **TO DO** | `<Chip label="TO DO" sx={{ bgcolor: '#00acc1', color: '#fff' }} />` | No MUI color slot — use `sx` |
+| Status | Usage |
+|---|---|
+| COMPLETE / ACTIVE | `<Chip color="success" label="COMPLETE" />` |
+| IN PROGRESS | `<Chip color="info" label="IN PROGRESS" />` |
+| REVIEW / PLANNING | `<Chip color="warning" label="REVIEW" />` |
+| DELAYED / CANCELLED | `<Chip color="error" label="DELAYED" />` |
+| ON HOLD | `<Chip label="ON HOLD" sx={{ bgcolor: '#7b1fa2', color: '#fff' }} />` |
+| TO DO | `<Chip label="TO DO" sx={{ bgcolor: '#00acc1', color: '#fff' }} />` |
 
-For **priority chips** (outlined variant), the spec uses high `#c2185b`, medium `#f57c00`, low `#388e3c`:
+**Priority** (outlined):
 
 ```tsx
-<Chip variant="outlined" color="error" label="HIGH" />
+<Chip variant="outlined" color="error"   label="HIGH" />
 <Chip variant="outlined" color="warning" label="MEDIUM" />
 <Chip variant="outlined" color="success" label="LOW" />
 ```
 
-For **category / tag chips** (filled):
-
-The design system uses a **4-color pastel rotation palette** so adjacent tags read as distinct without looking like status. **Wired into the theme as four `MuiChip` variants** — use them directly, no `sx` needed:
+**Category / tag chips** — pastel rotation, wired as 4 `MuiChip` variants. Use directly; no `sx` needed:
 
 ```tsx
-<Chip variant="tagBlue"   label="Design" />
-<Chip variant="tagPurple" label="Development" />
-<Chip variant="tagGreen"  label="Marketing" />
-<Chip variant="tagOrange" label="Research" />
+<Chip variant="tagBlue"   label="Design" />        // #E0F6FE / #004369
+<Chip variant="tagPurple" label="Development" />   // #EDE7F6 / #4527A0
+<Chip variant="tagGreen"  label="Marketing" />     // #E8F5E9 / #1B5E20
+<Chip variant="tagOrange" label="Research" />      // #FFF3E0 / #E65100
 ```
 
-| Variant | Bg | Text | Design system example |
-|---|---|---|---|
-| `tagBlue`   | `#E0F6FE` | `#004369` | Design |
-| `tagPurple` | `#EDE7F6` | `#4527A0` | Development |
-| `tagGreen`  | `#E8F5E9` | `#1B5E20` | Marketing |
-| `tagOrange` | `#FFF3E0` | `#E65100` | Research |
-
-When you have many tags and want a stable rotation, pick deterministically from the tag's name so the same category always lands on the same color:
+For deterministic rotation by tag name, hash → variant:
 
 ```tsx
 const TAG_VARIANTS = ['tagBlue', 'tagPurple', 'tagGreen', 'tagOrange'] as const;
-
-const variantForTag = (name: string): typeof TAG_VARIANTS[number] => {
+const variantForTag = (name: string) => {
   let h = 0;
   for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) | 0;
   return TAG_VARIANTS[Math.abs(h) % TAG_VARIANTS.length];
 };
-
 <Chip variant={variantForTag(tag)} label={tag} />
 ```
 
-If you need raw color values (e.g., for a non-Chip rendering), `taruviTokens.tagPalette[i]` exposes the same four `{ bg, text }` pairs.
+Raw values are also exposed at `taruviTokens.tagPalette[i]` for non-Chip surfaces. Outlined tags use a single brand-blue: `<Chip variant="outlined" label="Frontend" sx={{ color: '#1976d2', borderColor: '#1976d2' }} />`.
 
-For **category / tag chips (outlined)** — single brand-blue outline is fine when tags are technical (Frontend, Backend, API) rather than thematic:
-
-```tsx
-<Chip variant="outlined" label="Frontend" sx={{ color: '#1976d2', borderColor: '#1976d2' }} />
-```
-
-> **Don't** use the rotation palette for **status** — status uses the semantic chip colors documented above in §3. Rotation is for *categories* where the meaning is "different from each other", not "different in severity".
+> **Don't** use the rotation palette for status — rotation = "different from each other"; status colors = "different in severity".
 
 ---
 
@@ -172,51 +155,39 @@ The theme styles components but doesn't dictate page composition. Use these patt
 
 ### 4.3 Form layout
 
-The design uses a single-column layout by default, a 2-column grid for related paired inputs, and a "form section title" header for grouping. The theme handles input visuals (12×16 padding, 16px base font, 10px radius, focus ring) — this section covers the layout, labels, conventions, and accessibility you have to do by hand.
+Single-column by default; 2-column only for related paired inputs (Start/End, Status/Priority, City/Country). The theme handles input visuals — this section covers what you do by hand.
 
-**Vertical rhythm** (design system spec — also exported as theme tokens):
+**Vertical rhythm** (exposed as `taruviTokens.spacing.*`):
 
-| Gap | Value | Token |
+| | px | Token |
 |---|---|---|
-| Label → input | 8px | `taruviTokens.spacing.formLabelToInput` |
-| Input → helper / error | 4px | `taruviTokens.spacing.formInputToHelper` |
-| Between adjacent fields in a stack | 16px | `taruviTokens.spacing.formFieldGap` |
-| Between form sections | 32px | `taruviTokens.spacing.formSectionGap` |
-| Form actions top margin | 24px | `taruviTokens.spacing.formActionsMt` |
-| Cancel ↔ Save button gap | 10px | `taruviTokens.spacing.formActionsGap` |
+| Label → input | 8 | `formLabelToInput` |
+| Input → helper / error | 4 | `formInputToHelper` |
+| Field ↔ field | 16 | `formFieldGap` |
+| Section ↔ section | 32 | `formSectionGap` |
+| Form actions top margin | 24 | `formActionsMt` |
+| Cancel ↔ Save gap | 10 | `formActionsGap` |
 
-**Section title** (use above each logical group of fields — e.g., "Contact Information", "Billing Address"):
+**Section title** above each group:
 
 ```tsx
-<Typography sx={{
-  fontFamily: 'Quicksand', fontSize: 13, fontWeight: 600,
+<Typography sx={{ fontFamily: 'Quicksand', fontSize: 13, fontWeight: 600,
   textTransform: 'uppercase', letterSpacing: '0.05em',
-  color: 'text.disabled', mt: 4, mb: 1.75,   // 32px above (between-section), ~14px to first field
-}}>Contact Information</Typography>
+  color: 'text.disabled', mt: 4, mb: 1.75 }}>Contact Information</Typography>
 ```
 
-**Two-column grid** for related paired inputs (Start/End date, Status/Priority, City/Country). Stacks on mobile:
+**Two-column row** (stacks on mobile):
 
 ```tsx
 <Box sx={{ display: 'grid', gridTemplateColumns: { xs: '1fr', sm: '1fr 1fr' }, gap: 2 }}>
   <TextField label="Start Date" type="date" />
-  <TextField label="End Date *" type="date" required />
+  <TextField label="End Date" type="date" required />
 </Box>
 ```
 
-> Single-column is the **default** layout. Use 2-column only when fields are clearly related and similar in importance.
+**Label conventions**: `Title *` (`<TextField required />` adds the asterisk, themed error-color) · `Updated End Date (Optional)` when most fields are required · helper text for guidance/limits (`0/500 characters`, `Cannot modify after creation`) · error text replaces helper text and turns the border error-color automatically.
 
-**Field-label conventions:**
-
-| Convention | Example | When |
-|---|---|---|
-| **Required** marker | `Title *` (asterisk handled automatically by `<TextField required>`) | The asterisk is wired in the theme via `MuiFormLabel-asterisk` styled in error color |
-| **Optional** marker | `Updated End Date (Optional)` — append `(Optional)` to the label text | Use when **most** fields in the form are required and you need to call out the exception |
-| **Character counter** | `0/500 characters` as helper text on text/textarea inputs with a `maxLength` | Always show when there's a hard limit |
-| **Helper text** | `Cannot modify after creation` | Use for inline guidance, disabled hints, examples (`e.g. example.com`) |
-| **Error text** | `Company name is required` | Replace helper text; field border turns error color automatically |
-
-**Form actions** — Cancel **left**, primary **right**, right-aligned at the bottom of the form/card:
+**Form actions** — Cancel left, primary right, right-aligned:
 
 ```tsx
 <Stack direction="row" spacing={1.25} sx={{ mt: 3, justifyContent: 'flex-end' }}>
@@ -225,31 +196,22 @@ The design uses a single-column layout by default, a 2-column grid for related p
 </Stack>
 ```
 
-> **Order matters**: secondary action on the **left**, primary on the **right**. This is the spec, not a preference — primary on the right matches reading flow ("Cancel … or … Save").
-
-**Collapsible section** for optional/advanced fields (use sparingly — only when most users won't need them). The flat, no-top-divider look is already wired into the theme — `<Accordion>` renders correctly with no extra `sx`:
+**Collapsible section** (theme handles the flat look — no `sx` needed):
 
 ```tsx
 <Accordion>
-  <AccordionSummary expandIcon={<ExpandMoreRoundedIcon />}>
-    Additional Notes (Optional)
-  </AccordionSummary>
-  <AccordionDetails>
-    <TextField label="Notes" multiline rows={4} fullWidth />
-  </AccordionDetails>
+  <AccordionSummary expandIcon={<ExpandMoreRoundedIcon />}>Additional Notes (Optional)</AccordionSummary>
+  <AccordionDetails><TextField label="Notes" multiline rows={4} fullWidth /></AccordionDetails>
 </Accordion>
 ```
 
-**Accessibility checklist** (from the design system — agents must verify each before shipping a form):
+**Accessibility (verify before shipping):**
 
-- [ ] Every input has an associated label via `<TextField label="…">` (MUI handles the `htmlFor`).
-- [ ] Use the right `type=` for the field — `email` / `tel` / `number` / `date` / `url` / `password`. Mobile shows the right keyboard.
-- [ ] WCAG AA 4.5:1 contrast on label, helper, error text. (The theme tokens are AA-compliant; **don't override colors** without checking contrast.)
-- [ ] Error messages are specific (`Email must include @`) — never generic (`Invalid input`).
-- [ ] All controls reachable by tab; submit on `Enter` works.
-- [ ] `aria-describedby` links helper / error text to the input — `<TextField helperText="..." />` already does this for you; if you build a custom field, wire it yourself.
-- [ ] Required-field marker uses both visual (`*`) and semantic (`required` attribute, which adds `aria-required`).
-- [ ] Touch targets meet 44px on mobile — buttons already do via the `@media (pointer: coarse)` rule in the theme.
+- Every input has a label via `<TextField label="…">` (MUI wires `htmlFor`).
+- Right `type=` (`email`/`tel`/`number`/`date`/`url`/`password`) so mobile shows the right keyboard.
+- Error messages are specific (`Email must include @`) — never `Invalid input`.
+- Tab order works; `Enter` submits; theme tokens are WCAG AA (don't override colors blindly).
+- `<TextField helperText="…">` and `required` give you `aria-describedby` and `aria-required` for free; wire them yourself only for custom fields.
 
 ### 4.4 Hero / cover gradient
 
@@ -275,80 +237,27 @@ Pair with `cover-title` typography: **Quicksand 300, 58px, line-height 1.15, let
 
 ### 4.6 Empty states — four variants
 
-The design system specifies **four distinct empty states**. Picking the right one is part of the contract — a generic "no data" placeholder for a search miss is incomplete.
+Pick the variant by trigger; never use a generic "no data" for all four.
 
-| Variant | Trigger | Icon | CTA | Mood |
+| Variant | When | Icon | Heading / body | CTA |
 |---|---|---|---|---|
-| **No data yet** | Resource has 0 rows total (first run, never used) | resource icon (`FolderOpenRounded`, etc.) | **Primary** "+ Create …" | Inviting |
-| **No results found** | Search returned 0 rows | `SearchOffRounded` (or `SearchRounded` muted) | **Secondary outlined** "Clear search" | Helpful |
-| **No matching items** | Filters returned 0 rows | `FilterListRounded` (muted) | **Secondary outlined** "Clear all filters" | Helpful |
-| **Unable to load data** | API error / network failure | `ErrorRounded` (**error color**) | **Primary** "Try again" | Recoverable |
+| **No data yet** | `total===0 && !search && !filters` | `FolderOpenRounded` (resource icon) | "No projects yet" · "Get started by creating your first project" | `<Button variant="contained">+ Create project</Button>` |
+| **No results found** | search active, 0 rows | `SearchOffRounded` (muted) | "No results found" · "Try adjusting your search or filter" | `<Button variant="outlined" onClick={clearSearch}>Clear search</Button>` |
+| **No matching items** | filters active, 0 rows | `FilterListRounded` (muted) | "No matching items" · "No items match the current filters" | `<Button variant="outlined" onClick={clearFilters}>Clear all filters</Button>` |
+| **Unable to load** | `isError` | `ErrorRounded` (error color) | "Unable to load data" · "There was a problem loading your data" | `<Button variant="contained" onClick={retry}>Try again</Button>` |
 
-**Picking the right one** (decision tree):
-
-```text
-totalCount === 0
-└─ filters.length === 0 && !search  →  No data yet
-└─ filters.length > 0 || search     →  No matching items / No results found
-   ├─ search active               →  No results found
-   └─ only filters active         →  No matching items
-
-isError                              →  Unable to load data
-```
-
-**Shared anatomy** (all four):
+**Shared anatomy** (substitute the icon / heading / body / CTA from the row above):
 
 ```tsx
 <Box sx={{ textAlign: 'center', py: 5, px: 2.5, color: 'text.disabled' }}>
-  <Icon sx={{ fontSize: 48, mb: 1.5, display: 'block', mx: 'auto', color: 'inherit' }}>
-    {/* variant icon */}
-  </Icon>
-  <Typography variant="h5" sx={{ color: 'text.secondary', mb: 0.75 }}>
-    {/* variant heading */}
-  </Typography>
-  <Typography variant="body2" sx={{ mb: 2 }}>
-    {/* variant body */}
-  </Typography>
-  {/* variant CTA */}
+  <Icon sx={{ fontSize: 48, mb: 1.5, display: 'block', mx: 'auto' }} />
+  <Typography variant="h5" sx={{ color: 'text.secondary', mb: 0.75 }}>{heading}</Typography>
+  <Typography variant="body2" sx={{ mb: 2 }}>{body}</Typography>
+  {cta}
 </Box>
 ```
 
-**Per-variant fills:**
-
-```tsx
-// 1. No data yet
-<FolderOpenRoundedIcon … />
-<Typography variant="h5">No projects yet</Typography>
-<Typography variant="body2">Get started by creating your first project</Typography>
-<Button variant="contained" startIcon={<AddRoundedIcon />}>Create project</Button>
-
-// 2. No results found
-<SearchOffRoundedIcon … />
-<Typography variant="h5">No results found</Typography>
-<Typography variant="body2">Try adjusting your search or filter to find what you're looking for</Typography>
-<Button variant="outlined" onClick={clearSearch}>Clear search</Button>
-
-// 3. No matching items
-<FilterListRoundedIcon … />
-<Typography variant="h5">No matching items</Typography>
-<Typography variant="body2">No items match the current filters</Typography>
-<Button variant="outlined" onClick={clearFilters}>Clear all filters</Button>
-
-// 4. Unable to load data
-<ErrorRoundedIcon sx={{ color: 'error.main', fontSize: 48, mb: 1.5 }} />
-<Typography variant="h5">Unable to load data</Typography>
-<Typography variant="body2">There was a problem loading your data</Typography>
-<Button variant="contained" onClick={retry}>Try again</Button>
-```
-
-**Anti-pattern:**
-
-```tsx
-// ❌ Generic "No data" for every situation — agents do this constantly
-<Typography>No data</Typography>
-```
-
-A "no results from search" miss followed by a "+ Create" button is wrong — the user already has data, they just can't see it.
+> **Anti-pattern**: a "no results from search" miss followed by a "+ Create" CTA — the user already has data, they just can't see it. Use the **No results found** variant.
 
 ### 4.7 List view anatomy (mandatory)
 
@@ -421,48 +330,20 @@ If you find yourself writing the above, stop. The diagram above is the contract;
 
 ### 4.8 Confirmation dialog (mandatory for destructive actions)
 
-> **Every destructive action MUST go through a confirmation dialog.** This includes delete, archive, force-remove, permanent revoke, bulk-delete — anything the user cannot trivially undo. A bare `useDelete` call wired to a delete icon without a dialog is a bug.
-
-The design system specifies:
-
-```
-┌──────────────────────────────────────────────┐
-│  Delete project?                             │  ← Title — Quicksand H4, asks the question
-│                                              │
-│  Are you sure you want to delete             │  ← Body — body2, plain
-│  "Website Redesign"? This action cannot      │     Names the specific item in quotes.
-│  be undone.                                  │     States consequence explicitly.
-│                                              │
-│                     [ Cancel ]  [ Delete ]   │  ← Actions — Cancel left, destructive right
-└──────────────────────────────────────────────┘
-```
+> Every destructive action (delete, archive, force-remove, bulk-delete) **MUST** go through a confirmation dialog. A bare `useDelete` wired to a delete icon is a bug.
 
 **Rules:**
 
-| # | Rule |
-|---|---|
-| 1 | Title is a **question** ending in `?` (e.g., "Delete project?", "Archive 5 invoices?") — not a statement. |
-| 2 | Body **names the specific item** in quotes when single, or **shows the count** when bulk: *"Are you sure you want to delete 'Website Redesign'?"* / *"Are you sure you want to delete 5 invoices?"* |
-| 3 | Body **states the consequence**: "This action cannot be undone." Always. |
-| 4 | Primary button is **destructive** (`color="error"`), label matches the verb (`Delete`, `Archive`, `Remove`), never generic "OK". |
-| 5 | Cancel button is **outlined/text** secondary, on the **left**. |
-| 6 | Body should hint at side effects when applicable: *"This will also remove 12 attachments and 3 comments."* |
-
-**Implementation:**
+1. Title is a **question** ending in `?` — e.g., "Delete project?", "Archive 5 invoices?". Not a statement.
+2. Body **names the item** (single: `"Website Redesign"`) or **shows the count** (bulk: `5 projects`), and always ends `…This action cannot be undone.` Hint at cascades when relevant.
+3. Primary button: `color="error"`, label = the verb (`Delete project`, never `OK`). Cancel is outlined and goes on the **left**.
 
 ```tsx
-import {
-  Dialog, DialogTitle, DialogContent, DialogContentText, DialogActions,
-  Button,
-} from "@mui/material";
-import DeleteRoundedIcon from "@mui/icons-material/DeleteRounded";
-
 <Dialog open={confirmOpen} onClose={() => setConfirmOpen(false)} maxWidth="xs" fullWidth>
   <DialogTitle>Delete project?</DialogTitle>
   <DialogContent>
     <DialogContentText>
-      Are you sure you want to delete <strong>"{project.name}"</strong>?
-      This action cannot be undone.
+      Are you sure you want to delete <strong>"{project.name}"</strong>? This action cannot be undone.
     </DialogContentText>
   </DialogContent>
   <DialogActions>
@@ -474,213 +355,90 @@ import DeleteRoundedIcon from "@mui/icons-material/DeleteRounded";
 </Dialog>
 ```
 
-**Anti-pattern:**
+> **Bulk variant**: title `Delete N projects?`, body names the count, CTA reads `Delete N projects` — so the user re-reads the count before clicking.
 
-```tsx
-// ❌ DON'T — instant delete on click, no chance to cancel
-<IconButton onClick={() => deleteRecord(id)}>
-  <DeleteRoundedIcon />
-</IconButton>
-
-// ❌ DON'T — generic confirm()
-onClick={() => { if (confirm("Are you sure?")) deleteRecord(id) }}
-
-// ❌ DON'T — confirmation but the primary button is "OK" instead of the verb
-<Button>OK</Button>     // doesn't match what the user is actually doing
-```
-
-For **bulk** confirmations, the body should reflect the count: *"Are you sure you want to delete **5 projects**? This action cannot be undone."* — and the primary CTA should read `Delete 5 projects` so the user re-reads the count right before clicking.
+**Anti-patterns**: instant delete on click · `window.confirm()` · primary button labelled "OK".
 
 ### 4.9 Bulk actions toolbar (mandatory when list supports selection)
 
-> **If a list page has a selection checkbox column, it MUST have a bulk-actions toolbar** that appears when ≥1 row is selected. Without it, the checkbox is a dead control.
-
-Two visual variants — both are spec'd, pick by emphasis:
-
-**Primary variant** (high-emphasis — full-width primary-blue bar):
+> If a list has selection checkboxes, it **MUST** have a bulk-actions toolbar that appears on selection — otherwise the checkboxes are dead controls.
 
 ```
 ┌────────────────────────────────────────────────────────────────────┐
-│  3 items selected                          [ Export ] [ Delete ] × │  ← bg: button.primaryDefault
-└────────────────────────────────────────────────────────────────────┘   text: white, buttons: outlined-white
+│  3 items selected                          [ Export ] [ Delete ] × │  bg: primary.main, white text
+└────────────────────────────────────────────────────────────────────┘
 ```
 
-**Subtle variant** (light primary-50 background — use when the toolbar sits inside a card or under tabs and would feel loud at full blue):
+**Rules:** show only when ≥1 row selected · always display the count · `×` clears selection · destructive bulk actions route through §4.8 (with the count in the dialog body) · 3 actions max (overflow → `⋮`) · sit above or below the list, not floating.
 
-```
-┌────────────────────────────────────────────────────────────────────┐
-│  5 items selected                          ↓ Export   🗑 Delete  × │  ← bg: primary[50]
-└────────────────────────────────────────────────────────────────────┘   text: primary, buttons: text-style
-```
-
-**Rules:**
-
-| # | Rule |
-|---|---|
-| 1 | Show **only when** ≥1 row is selected. Hidden otherwise. |
-| 2 | Display the **count explicitly** (`3 items selected`, not "Selected"). |
-| 3 | Provide a clear way to **clear the selection** (the `×` on the right). |
-| 4 | Destructive bulk actions (Delete, Archive, Force-revoke) use **destructive styling** (red text/border) AND **route through §4.8 confirmation dialog** with the count in the body. |
-| 5 | Position **above or below the list**, not floating. Above is more discoverable; below avoids pushing the table down on every selection. |
-| 6 | Keep the set of bulk actions short (3 max — Export / Edit / Delete is typical). Overflow → "More actions" `⋮` menu. |
-
-**Implementation (primary variant):**
+> **Subtle variant**: same layout, swap `bgcolor: 'primary.main'` for `'primary.50'` and use text-style buttons. Pick when the bar sits inside a card and full-blue feels loud.
 
 ```tsx
-import { Box, Stack, Button, IconButton, Typography } from "@mui/material";
-import DownloadRoundedIcon from "@mui/icons-material/DownloadRounded";
-import DeleteRoundedIcon from "@mui/icons-material/DeleteRounded";
-import CloseRoundedIcon from "@mui/icons-material/CloseRounded";
-
 {selectedIds.length > 0 && (
-  <Box sx={{
-    bgcolor: 'primary.main', color: 'primary.contrastText',
-    borderRadius: 1.25, px: 2, py: 1, mb: 2,
-    display: 'flex', alignItems: 'center', gap: 2,
-  }}>
+  <Box sx={{ bgcolor: 'primary.main', color: 'primary.contrastText',
+             borderRadius: 1.25, px: 2, py: 1, mb: 2,
+             display: 'flex', alignItems: 'center', gap: 2 }}>
     <Typography sx={{ flex: 1, fontWeight: 600 }}>
       {selectedIds.length} item{selectedIds.length === 1 ? '' : 's'} selected
     </Typography>
-    <Stack direction="row" spacing={1}>
-      <Button variant="outlined" startIcon={<DownloadRoundedIcon />}
-        sx={{ color: 'inherit', borderColor: 'rgba(255,255,255,0.5)' }} onClick={onExport}>
-        Export
-      </Button>
-      <Button variant="outlined" startIcon={<DeleteRoundedIcon />}
-        sx={{ color: 'inherit', borderColor: 'rgba(255,255,255,0.5)' }}
-        onClick={() => setConfirmBulkDelete(true)}>
-        Delete
-      </Button>
-      <IconButton sx={{ color: 'inherit' }} onClick={() => setSelectedIds([])}>
-        <CloseRoundedIcon />
-      </IconButton>
-    </Stack>
+    <Button variant="outlined" sx={{ color: 'inherit', borderColor: 'rgba(255,255,255,0.5)' }}
+      startIcon={<DownloadRoundedIcon />} onClick={onExport}>Export</Button>
+    <Button variant="outlined" sx={{ color: 'inherit', borderColor: 'rgba(255,255,255,0.5)' }}
+      startIcon={<DeleteRoundedIcon />} onClick={() => setConfirmBulkDelete(true)}>Delete</Button>
+    <IconButton sx={{ color: 'inherit' }} onClick={() => setSelectedIds([])}>
+      <CloseRoundedIcon />
+    </IconButton>
   </Box>
 )}
 ```
 
-**Anti-pattern:**
-
-```tsx
-// ❌ DON'T — checkbox column with no toolbar
-<DataGrid checkboxSelection />     // user can select but can't do anything with the selection
-
-// ❌ DON'T — bulk delete without confirmation
-<Button onClick={() => deleteMany(selectedIds)}>Delete</Button>
-```
+**Anti-patterns**: `<DataGrid checkboxSelection />` with no toolbar · bulk delete without §4.8 confirmation.
 
 ### 4.10 Loading states (mandatory when fetching data)
 
-> **Never leave a page blank while data loads.** Use one of the three patterns below.
+> Never leave a page blank while data loads. Pick by intent:
 
-| Variant | When | Look |
+| Variant | Use when | Snippet |
 |---|---|---|
-| **Skeleton loader** | Initial list / card / table load — placeholder for content that will fill in shortly | Light gray animated bars matching the shape of rows/cells |
-| **Spinner overlay** | Mid-page action that takes >300ms — refresh, filter change, big query | Centered `<CircularProgress />` + "Loading data…" subtitle, inside the card's body area (not full-screen) |
-| **Inline button spinner** | Async button click — submitting a form, executing a function | Replace the button label with `<CircularProgress size={16} />` and disable the button |
+| **Skeleton** | Initial list / card / table load (`query.isLoading`) | `<Skeleton variant="text" />` inside each cell, or `<Skeleton variant="rounded" height={180} />` per card |
+| **Spinner overlay** | Mid-action refetch >300ms (`query.isFetching`) — refresh, filter change | `<Stack sx={{ alignItems: 'center', py: 8 }}><CircularProgress /><Typography variant="body2" color="text.disabled">Loading data…</Typography></Stack>` (inside the card, not full-screen) |
+| **Inline button spinner** | Async submit / function call | `<Button disabled={isSubmitting} startIcon={isSubmitting && <CircularProgress size={16} color="inherit" />}>{isSubmitting ? 'Saving…' : 'Save'}</Button>` |
 
-**Skeleton (table rows):**
+Skeleton table rows:
 
 ```tsx
-import { Skeleton, TableRow, TableCell } from "@mui/material";
-
 {isLoading
   ? Array.from({ length: 5 }).map((_, i) => (
-      <TableRow key={i}>
-        {columns.map((c) => (
-          <TableCell key={c.field}>
-            <Skeleton variant="text" />
-          </TableCell>
-        ))}
-      </TableRow>
+      <TableRow key={i}>{columns.map((c) => (
+        <TableCell key={c.field}><Skeleton variant="text" /></TableCell>
+      ))}</TableRow>
     ))
   : rows.map((row) => <TableRow key={row.id}>…</TableRow>)
 }
 ```
 
-**Skeleton (card grid):**
-
-```tsx
-<Skeleton variant="rounded" height={180} sx={{ borderRadius: 2 }} />
-```
-
-**Spinner overlay (inside a card):**
-
-```tsx
-{isLoading && (
-  <Stack sx={{ alignItems: 'center', justifyContent: 'center', py: 8 }} spacing={1.5}>
-    <CircularProgress />
-    <Typography variant="body2" color="text.disabled">Loading data…</Typography>
-  </Stack>
-)}
-```
-
-**Inline button spinner:**
-
-```tsx
-<Button variant="contained" disabled={isSubmitting} startIcon={isSubmitting ? <CircularProgress size={16} color="inherit" /> : undefined}>
-  {isSubmitting ? 'Saving…' : 'Save Changes'}
-</Button>
-```
-
-**Anti-pattern:**
-
-```tsx
-// ❌ DON'T — blank table or "Loading..." text only
-{isLoading ? <p>Loading...</p> : <DataGrid rows={rows} />}
-
-// ❌ DON'T — full-screen modal spinner that blocks the entire app for a 400ms query
-<Backdrop open={isLoading}><CircularProgress /></Backdrop>
-```
-
-Refine wiring: `useList` / `useDataGrid` expose `query.isLoading` for initial load and `query.isFetching` for refetches — use the appropriate one (skeleton for `isLoading`, subtle overlay or grayed table for `isFetching`).
+**Anti-patterns**: `"Loading..."` text only · full-screen `<Backdrop>` for a 400ms query.
 
 ### 4.11 Show / Detail page anatomy (mandatory)
 
-> **A show page is not just a list of fields.** Every detail page MUST include the elements below — same enforcement principle as §4.7 list anatomy.
+> A show page is not just a list of fields. Every detail page **MUST** include the elements below.
 
 ```
-┌────────────────────────────────────────────────────────────────────┐
-│  Breadcrumb                                                        │
-│  📁 Projects  /  Website Redesign                                  │  ← §4.7 toolbar style; current page bold
-├────────────────────────────────────────────────────────────────────┤
-│  Header                                                            │
-│  H2  Website Redesign      [IN PROGRESS]    [Edit] [Delete] [⋮]  │  ← title + status chip + actions
-│  Mar 1, 2026 – Jun 30, 2026 · Owner: Sarah Johnson                 │  ← meta line, body2 muted
-├────────────────────────────────────────────────────────────────────┤
-│  Tabs (when there is related data)                                 │
-│  [ Overview ]  [ Tasks (12) ]  [ Files (4) ]  [ Activity ]        │  ← Tabs + count in label
-├────────────────────────────────────────────────────────────────────┤
-│  Active tab body                                                   │
-│  …field rows, related-record cards, sub-lists…                     │
-└────────────────────────────────────────────────────────────────────┘
+┌─────────────────────────────────────────────────────────────────────┐
+│ 📁 Projects / Website Redesign                                      │ ← Breadcrumb (current = bold)
+│                                                                     │
+│ H2 Website Redesign    [IN PROGRESS]      [Edit] [Delete] [⋮]      │ ← Title · status chip · actions
+│ Mar 1 – Jun 30, 2026 · Owner: Sarah Johnson                         │ ← Meta line, body2 muted
+│                                                                     │
+│ [ Overview ]  [ Tasks (12) ]  [ Files (4) ]  [ Activity ]          │ ← Tabs (label + count)
+│                                                                     │
+│ …active tab body…                                                   │
+└─────────────────────────────────────────────────────────────────────┘
 ```
 
-**Required elements:**
+**Required**: breadcrumb · H2 title · status chip beside title (when the resource has status) · Edit/Delete/More right-aligned (Delete → §4.8) · meta line below title · tabs as `Label (count)` when there's related data · empty states per §4.6 for empty tabs · loading per §4.10. Use Refine's `<Show>` from `@refinedev/mui` for the header scaffold.
 
-| # | Element | Rule |
-|---|---|---|
-| 1 | **Breadcrumb** | Always present. Last segment = current resource (bold, larger — wired in theme). Provides escape route up. |
-| 2 | **Page heading** (H2) | The entity's primary identifier. |
-| 3 | **Status chip** next to title | If the resource has a status field, render it here too — not just in the table. |
-| 4 | **Action cluster** (Edit / Delete / More) | Right-aligned, in the header. Delete goes through §4.8 confirmation dialog. |
-| 5 | **Meta line** below title | Body2, muted: date range, owner, created/updated, anything else that identifies the record at a glance. |
-| 6 | **Tabs** when there are related records | Format: `Label (count)` — e.g., `Tasks (12)`. Skip tabs only if the page truly has one block of content. |
-| 7 | **Empty states** for related-record tabs | Same four-variant decision tree from §4.6. |
-| 8 | **Loading states** | Same three variants from §4.10. |
-
-**Anti-pattern:**
-
-```tsx
-// ❌ DON'T — bare field dump
-<Stack>
-  <Typography>Name: {project.name}</Typography>
-  <Typography>Status: {project.status}</Typography>
-  <Typography>Owner: {project.owner_name}</Typography>
-</Stack>
-```
-
-Use Refine's `<Show>` from `@refinedev/mui` as the header scaffold — it gives you the breadcrumb + title + action buttons for free.
+> **Anti-pattern**: bare `<Stack>` of `Name: …` / `Status: …` field rows.
 
 ### 4.12 Table column-type rules
 
@@ -721,38 +479,32 @@ const columns: GridColDef[] = [
 
 ### 4.13 Entity card (kanban / dashboard alternative to a row)
 
-When a list visualization makes more sense as **cards** than rows (kanban boards, dashboard widgets, gallery views, mobile-first lists), use this anatomy. Same data, different framing.
+Same data as a row, different framing. Use cards when records are mobile-first, drag-and-droppable, or richer than scalars.
 
 ```
 ┌────────────────────────────────────┐
-│  Title (H5)                      ⋮ │  ← H5 + overflow menu
+│  Title (H5)                      ⋮ │
 │  Short description (body2 muted)   │
-│                                    │
-│  [IN PROGRESS] [HIGH] [Design]     │  ← status + priority + tag chips
-│                                    │
-│  Due: Mar 30, 2026     ✎ 🗑       │  ← meta + actions (icon-only)
+│  [IN PROGRESS] [HIGH] [Design]     │ ← status + priority + tag chips
+│  Due: Mar 30, 2026     ✎ 🗑       │
 └────────────────────────────────────┘
 ```
 
 ```tsx
-<Card sx={{ p: 0 /* theme adds 28px; override if you want tighter */ }}>
+<Card>
   <CardContent>
-    <Stack direction="row" alignItems="flex-start" justifyContent="space-between" sx={{ mb: 1 }}>
+    <Stack direction="row" justifyContent="space-between" alignItems="flex-start" sx={{ mb: 1 }}>
       <Typography variant="h5">{project.name}</Typography>
       <IconButton size="small"><MoreVertRoundedIcon /></IconButton>
     </Stack>
-    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-      {project.description}
-    </Typography>
+    <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>{project.description}</Typography>
     <Stack direction="row" spacing={1} sx={{ mb: 2, flexWrap: 'wrap' }}>
       <Chip label={project.status} color="info" />
       <Chip variant="outlined" label={project.priority} color="error" />
-      <Chip label={project.category} sx={{ bgcolor: tagBg, color: tagText }} />
+      <Chip variant="tagBlue" label={project.category} />
     </Stack>
-    <Stack direction="row" alignItems="center" justifyContent="space-between">
-      <Typography variant="body2" color="text.secondary">
-        Due: {format(project.due, "MMM dd, yyyy")}
-      </Typography>
+    <Stack direction="row" justifyContent="space-between" alignItems="center">
+      <Typography variant="body2" color="text.secondary">Due: {format(project.due, "MMM dd, yyyy")}</Typography>
       <Stack direction="row">
         <IconButton size="small" onClick={onEdit}><EditRoundedIcon fontSize="small" /></IconButton>
         <IconButton size="small" color="error" onClick={onDelete}><DeleteRoundedIcon fontSize="small" /></IconButton>
@@ -762,16 +514,13 @@ When a list visualization makes more sense as **cards** than rows (kanban boards
 </Card>
 ```
 
-**When to use cards vs. rows:**
+**Rows vs cards** — pick one, don't mix:
 
-| Use rows (§4.7) when | Use cards (§4.13) when |
+| Rows (§4.7) | Cards (§4.13) |
 |---|---|
-| User needs to scan many records by column | User needs to see records one-at-a-time with context |
-| Sorting / filtering is the primary interaction | Drag-and-drop, kanban, or visual grouping is primary |
-| Mobile is secondary | Mobile is the primary target |
-| Most data is short scalars (name, status, date) | Records have rich content (cover image, multiple chips, long description) |
-
-Don't mix the two in the same page — pick one.
+| Scanning many records by column | One-at-a-time with context |
+| Sort/filter is primary | Drag-and-drop, kanban, visual grouping |
+| Data is short scalars | Records have rich content (image, multiple chips, long text) |
 
 ---
 

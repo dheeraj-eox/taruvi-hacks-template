@@ -30,7 +30,9 @@ import {AppSettingsProvider, useAppSettings} from "./contexts/app-settings";
 import { useContext, useRef, useEffect } from "react";
 import { Home } from "./pages/home";
 import { PeopleList } from "./pages/people";
+import { AnimalList, AnimalCreate, AnimalEdit, AnimalShow } from "./pages/animals";
 import PeopleIcon from "@mui/icons-material/People";
+import PetsIcon from "@mui/icons-material/Pets";
 
 const AppContent = () => {
   const { setMode } = useContext(ColorModeContext);
@@ -85,6 +87,18 @@ const AppContent = () => {
                       aclResource: "datatable:people",
                     },
                   },
+                  {
+                    name: "animals",
+                    list: "/animals",
+                    create: "/animals/create",
+                    edit: "/animals/edit/:id",
+                    show: "/animals/show/:id",
+                    meta: {
+                      canDelete: true,
+                      label: "Animals",
+                      icon: <PetsIcon />,
+                    },
+                  },
                 ]}
                 options={{
                   syncWithLocation: true,
@@ -112,6 +126,10 @@ const AppContent = () => {
                   >
                     <Route index element={<Home />} />
                     <Route path="/people" element={<PeopleList />} />
+                    <Route path="/animals" element={<AnimalList />} />
+                    <Route path="/animals/create" element={<AnimalCreate />} />
+                    <Route path="/animals/edit/:id" element={<AnimalEdit />} />
+                    <Route path="/animals/show/:id" element={<AnimalShow />} />
                     <Route path="*" element={<ErrorComponent />} />
                   </Route>
                 </Routes>

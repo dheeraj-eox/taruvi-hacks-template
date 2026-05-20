@@ -2,99 +2,62 @@
   {
     "policy_type": "resource",
     "entity_type": "datatable",
-    "name": "people",
+    "name": "animals",
     "rules": [
       {
         "actions": [
           "*"
         ],
         "roles": [
-          "Admin"
+          "*"
         ],
         "effect": "EFFECT_ALLOW",
-        "derived_roles": [],
-        "name": ""
-      },
-      {
-        "actions": [
-          "list",
-          "create"
-        ],
-        "roles": [
-          "Employee"
-        ],
-        "effect": "EFFECT_ALLOW",
-        "derived_roles": [],
-        "name": ""
+        "name": "allow_wildcard",
+        "derived_roles": []
       },
       {
         "actions": [
           "read"
         ],
         "roles": [
-          "Employee"
+          "*"
         ],
-        "condition": {
-          "match": {
-            "expr": "request.resource.attr.owner_id == request.principal.id"
-          }
-        },
         "effect": "EFFECT_ALLOW",
-        "derived_roles": [],
-        "name": ""
+        "name": "allow_read",
+        "derived_roles": []
       },
       {
         "actions": [
-          "write",
+          "update"
+        ],
+        "roles": [
+          "*"
+        ],
+        "effect": "EFFECT_ALLOW",
+        "name": "allow_update",
+        "derived_roles": []
+      },
+      {
+        "actions": [
+          "create"
+        ],
+        "roles": [
+          "*"
+        ],
+        "effect": "EFFECT_ALLOW",
+        "name": "allow_create",
+        "derived_roles": []
+      },
+      {
+        "actions": [
           "delete"
         ],
         "roles": [
-          "Employee"
+          "*"
         ],
-        "condition": {
-          "match": {
-            "expr": "request.resource.attr.owner_id == request.principal.id"
-          }
-        },
         "effect": "EFFECT_ALLOW",
-        "derived_roles": [],
-        "name": ""
-      }
-    ]
-  },
-  {
-    "policy_type": "role",
-    "name": "Admin",
-    "rules": [
-      {
-        "resource": "*",
-        "allow_actions": [
-          "*"
-        ]
-      }
-    ]
-  },
-  {
-    "policy_type": "role",
-    "name": "Employee",
-    "rules": [
-      {
-        "resource": "*",
-        "allow_actions": [
-          "*"
-        ]
-      }
-    ]
-  },
-  {
-    "policy_type": "role",
-    "name": "Test",
-    "rules": [
-      {
-        "resource": "*",
-        "allow_actions": [
-          "*"
-        ]
+        "name": "allow_delete",
+        "derived_roles": []
       }
     ]
   }

@@ -13,7 +13,8 @@
   "postStartCommand": "bash -lc '[ -f .mcp.json ] || cp .mcp.example.json .mcp.json; [ -f .env ] || cp .env.example .env; mkdir -p .codex/projects'",
   "postAttachCommand": {
     "app": "bash -lc 'source /usr/local/share/nvm/nvm.sh; nvm install 22; nvm use 22; [ -d node_modules ] || npm install --legacy-peer-deps; npm run dev -- --host 0.0.0.0 --port 5173'",
-    "codex": "bash -lc 'bash scripts/start-codex-devcontainer.sh'"
+    "codex": "bash -lc 'bash scripts/start-codex-devcontainer.sh'",
+    "openEnv": "sleep 4 && code .env"
   },
   "forwardPorts": [5173],
   "portsAttributes": {
@@ -24,16 +25,9 @@
   },
   "customizations": {
     "vscode": {
-      "extensions": [
-        "GitHub.copilot",
-        "GitHub.copilot-chat"
-      ],
+      "extensions": [],
       "settings": {
-        "terminal.integrated.defaultProfile.linux": "bash",
-        "github.copilot.enable": {
-          "*": true
-        },
-        "github.copilot.editor.enableAutoCompletions": true
+        "terminal.integrated.defaultProfile.linux": "bash"
       }
     }
   }

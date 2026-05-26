@@ -19,7 +19,7 @@ export CODEX_HOME="${CODEX_HOME:-$PWD/.codex}"
 mkdir -p "$CODEX_HOME/projects"
 
 cat > "$CODEX_HOME/config.toml" <<EOF
-model = "gpt-5.4-mini"
+model = "gpt-5.5"
 
 [mcp_servers.taruvi]
 url = "${TARUVI_SITE_URL}/mcp/"

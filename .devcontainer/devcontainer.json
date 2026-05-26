@@ -27,7 +27,10 @@
     "vscode": {
       "extensions": [],
       "settings": {
-        "terminal.integrated.defaultProfile.linux": "bash"
+        "terminal.integrated.defaultProfile.linux": "bash",
+        "github.copilot.enable": { "*": false },
+        "github.copilot.editor.enableAutoCompletions": false,
+        "github.copilot-chat.welcomeMessage": "never"
       }
     }
   }

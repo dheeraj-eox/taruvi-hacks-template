@@ -14,7 +14,8 @@
   "postAttachCommand": {
     "app": "bash -lc 'source /usr/local/share/nvm/nvm.sh; nvm install 22; nvm use 22; [ -d node_modules ] || npm install --legacy-peer-deps; npm run dev -- --host 0.0.0.0 --port 5173'",
     "codex": "bash -lc 'bash scripts/start-codex-devcontainer.sh'",
-    "openEnv": "sleep 4 && code .env"
+    "openEnv": "sleep 4 && code .env",
+    "disableCopilot": "code --uninstall-extension GitHub.copilot-chat || true"
   },
   "forwardPorts": [5173],
   "portsAttributes": {
@@ -30,8 +31,7 @@
         "terminal.integrated.defaultProfile.linux": "bash",
         "github.copilot.enable": { "*": false },
         "github.copilot.editor.enableAutoCompletions": false,
-        "github.copilot-chat.welcomeMessage": "never",
-        "extensions.disabled": ["GitHub.copilot-chat"]
+        "github.copilot-chat.welcomeMessage": "never"
       }
     }
   }

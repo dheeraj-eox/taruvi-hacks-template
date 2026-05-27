@@ -30,7 +30,8 @@
         "terminal.integrated.defaultProfile.linux": "bash",
         "github.copilot.enable": { "*": false },
         "github.copilot.editor.enableAutoCompletions": false,
-        "github.copilot-chat.welcomeMessage": "never"
+        "github.copilot-chat.welcomeMessage": "never",
+        "extensions.disabled": ["GitHub.copilot-chat"]
       }
     }
   }

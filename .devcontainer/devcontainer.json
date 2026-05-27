@@ -26,14 +26,44 @@
     "vscode": {
       "extensions": [
         "GitHub.copilot",
-        "GitHub.copilot-chat"
+        "GitHub.copilot-chat",
+        "seunlanlege.action-buttons"
       ],
       "settings": {
         "terminal.integrated.defaultProfile.linux": "bash",
         "github.copilot.enable": {
           "*": true
         },
-        "github.copilot.editor.enableAutoCompletions": true
+        "github.copilot.editor.enableAutoCompletions": true,
+        "files.exclude": {
+          "node_modules/": true,
+          ".codex/": true
+        },
+        "editor.minimap.enabled": false,
+        "actionButtons": {
+          "defaultColor": "#ffffff",
+          "loadNpmCommands": false,
+          "commands": [
+            {
+              "name": "⚙️ Setup .env",
+              "singleInstance": true,
+              "command": "code .env",
+              "tooltip": "Open .env and fill in your Taruvi credentials (copy from the onboarding page)"
+            },
+            {
+              "name": "🔑 Connect Codex",
+              "singleInstance": true,
+              "command": "bash scripts/start-codex-devcontainer.sh",
+              "tooltip": "Fetch your AI provider key from Taruvi secrets and launch Codex"
+            },
+            {
+              "name": "🚀 Dev Server",
+              "singleInstance": true,
+              "command": "npm run dev -- --host 0.0.0.0 --port 5173",
+              "tooltip": "Start the development server on port 5173"
+            }
+          ]
+        }
       }
     }
   }

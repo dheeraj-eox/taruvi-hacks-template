@@ -1,0 +1,6 @@
+{
+  "extensions.disabled": [
+    "GitHub.copilot-chat",
+    "GitHub.copilot"
+  ]
+}

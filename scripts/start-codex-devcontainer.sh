@@ -101,16 +101,22 @@ with open('.mcp.json', 'w') as f:
 "
 echo "✅ MCP server configured."
 
-# Write key to OpenAI auth file so the ChatGPT extension picks it up without prompting
-mkdir -p "${XDG_CONFIG_HOME:-$HOME/.config}/openai"
+# Write key for openai.chatgpt VS Code extension
+mkdir -p "$HOME/.config/openai"
 printf '{"apiKey":"%s"}\n' "$PROVIDER_KEY" \
-  > "${XDG_CONFIG_HOME:-$HOME/.config}/openai/auth.json"
+  > "$HOME/.config/openai/auth.json"
+
+# Write key for Codex CLI (terminal fallback — does not auto-launch)
+printf '{"apiKey":"%s"}\n' "$PROVIDER_KEY" \
+  > "${CODEX_HOME}/auth.json"
 
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
-echo "  ✅ All set! Opening ChatGPT panel..."
+echo "  ✅ Setup complete!"
+echo ""
+echo "  Open the ChatGPT panel in the sidebar and paste"
+echo "  your API key when prompted:"
+echo ""
+echo "  ${PROVIDER_VAR}=${PROVIDER_KEY}"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""
-
-# Open the ChatGPT sidebar panel automatically
-code --command "chatgpt.openSidebar" 2>/dev/null || true

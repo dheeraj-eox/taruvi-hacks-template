@@ -54,13 +54,19 @@
               "name": "🔑 Connect Codex",
               "singleInstance": true,
               "command": "bash scripts/start-codex-devcontainer.sh",
-              "tooltip": "Fetch your AI provider key from Taruvi secrets and launch Codex"
+              "tooltip": "Fetch your AI provider key from Taruvi secrets — then paste the key shown in the terminal into the ChatGPT panel"
             },
             {
               "name": "👁️ Open Preview",
               "singleInstance": false,
-              "command": "code --open-url \"https://${CODESPACE_NAME}-5173.${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN}\"",
+              "command": "bash scripts/open-preview.sh",
               "tooltip": "Open the app preview inside VS Code (log in via the browser tab first)"
+            },
+            {
+              "name": "🤖 Codex CLI",
+              "singleInstance": true,
+              "command": "codex",
+              "tooltip": "Launch Codex CLI in terminal — run 🔑 Connect Codex first to configure auth"
             }
           ]
         }

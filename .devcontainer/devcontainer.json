@@ -10,15 +10,14 @@
     "CODEX_HOME": "${containerWorkspaceFolder}/.codex"
   },
   "postCreateCommand": "bash -lc '[ -f .mcp.json ] || cp .mcp.example.json .mcp.json; [ -f .env ] || cp .env.example .env; mkdir -p .codex/projects; source /usr/local/share/nvm/nvm.sh; nvm install 22; nvm use 22; npm install --legacy-peer-deps; command -v codex >/dev/null 2>&1 || npm install -g @openai/codex'",
-  "postStartCommand": "bash -lc '[ -f .mcp.json ] || cp .mcp.example.json .mcp.json; [ -f .env ] || cp .env.example .env; mkdir -p .codex/projects'",
+  "postStartCommand": "bash -lc '[ -f .mcp.json ] || cp .mcp.example.json .mcp.json; [ -f .env ] || cp .env.example .env; mkdir -p .codex/projects .codespace'",
   "postAttachCommand": {
-    "app": "bash -lc 'source /usr/local/share/nvm/nvm.sh; nvm install 22; nvm use 22; [ -d node_modules ] || npm install --legacy-peer-deps; npm run dev -- --host 0.0.0.0 --port 5173'",
-    "openEnv": "sleep 4 && code .env"
+    "setup": "bash -lc 'bash scripts/codespace-first-run.sh'"
   },
   "forwardPorts": [5173],
   "portsAttributes": {
     "5173": {
-      "label": "Refine Dev Server",
+      "label": "Taruvi Hackathon App",
       "onAutoForward": "openPreview"
     }
   },
@@ -37,7 +36,8 @@
         "chat.disableAIFeatures": true,
         "files.exclude": {
           "node_modules/": true,
-          ".codex/": true
+          ".codex/": true,
+          ".codespace/": true
         },
         "editor.minimap.enabled": false,
         "actionButtons": {
@@ -45,28 +45,34 @@
           "loadNpmCommands": false,
           "commands": [
             {
-              "name": "⚙️ Setup .env",
+              "name": "⚙️ Reopen .env",
               "singleInstance": true,
               "command": "code .env",
-              "tooltip": "Open .env and fill in your Taruvi credentials (copy from the onboarding page)"
+              "tooltip": "Reopen the .env file to check or update your Taruvi credentials"
             },
             {
-              "name": "🔑 Connect Codex",
+              "name": "🔁 Retry Setup",
               "singleInstance": true,
-              "command": "bash scripts/start-codex-devcontainer.sh",
-              "tooltip": "Fetch your AI provider key from Taruvi, configure MCP, and open the Codex sidebar — your default way to build"
+              "command": "bash scripts/start-codex-devcontainer.sh --non-interactive",
+              "tooltip": "Re-run Taruvi MCP and Codex configuration (use if setup failed or credentials changed)"
             },
             {
               "name": "👁️ Open Preview",
               "singleInstance": false,
               "command": "bash scripts/open-preview.sh",
-              "tooltip": "Print the preview URL — opens in a new browser tab. Log in there first, then the Simple Browser in VS Code will reflect your session."
+              "tooltip": "Open the app preview — log in via the browser tab first if prompted"
+            },
+            {
+              "name": "🤖 Open Codex Chat",
+              "singleInstance": true,
+              "command": "code --command chatgpt.openSidebar",
+              "tooltip": "Open the Codex/ChatGPT sidebar — use this if it did not open automatically after setup"
             },
             {
               "name": "🤖 Codex CLI",
               "singleInstance": true,
               "command": "bash -c 'set -a; [ -f .env ] && source .env; set +a; exec codex'",
-              "tooltip": "Optional: launch Codex in the terminal instead of the sidebar — run 🔑 Connect Codex first"
+              "tooltip": "Optional: launch Codex in the terminal instead of the sidebar"
             }
           ]
         }

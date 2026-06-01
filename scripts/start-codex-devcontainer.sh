@@ -101,36 +101,31 @@ with open('.mcp.json', 'w') as f:
 "
 echo "✅ MCP server configured."
 
-# Write key for openai.chatgpt VS Code extension
-mkdir -p "$HOME/.config/openai"
+# Pre-authenticate the openai.chatgpt VS Code extension by writing auth.json
+# to both the XDG path (XDG_CONFIG_HOME=/tmp set above) and the default home
+# path, so the extension finds it regardless of which location it checks.
+mkdir -p "${XDG_CONFIG_HOME}/openai" "$HOME/.config/openai"
 printf '{"apiKey":"%s"}\n' "$PROVIDER_KEY" \
-  > "$HOME/.config/openai/auth.json"
+  | tee "${XDG_CONFIG_HOME}/openai/auth.json" \
+        "$HOME/.config/openai/auth.json" > /dev/null
 
-# Persist key to shell profile so `codex` CLI picks it up in any new terminal
+# Persist key to shell profile so any new terminal also has it
 if grep -q "^export ${PROVIDER_VAR}=" ~/.bashrc 2>/dev/null; then
   sed -i "s|^export ${PROVIDER_VAR}=.*|export ${PROVIDER_VAR}=${PROVIDER_KEY}|" ~/.bashrc
 else
   echo "export ${PROVIDER_VAR}=${PROVIDER_KEY}" >> ~/.bashrc
 fi
 
-# Open the Codex sidebar using the correct command ID from
-# developers.openai.com/codex/ide/commands
-code --command chatgpt.openSidebar >/dev/null 2>&1 || true
-
 echo ""
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo "  ✅ Setup complete! Your Codex integration with"
 echo "  the Taruvi platform's MCP context is ready."
 echo ""
-echo "  To use the ChatGPT sidebar:"
-echo "  1. Click the ChatGPT icon in the left Activity Bar"
-echo "     (or press Ctrl+Shift+P → 'ChatGPT: Open Chat')"
-echo "  2. Click 'Use API Key' at the bottom of the panel"
-echo "  3. Paste your key when prompted:"
+echo "  👉 Click the ChatGPT icon in the left Activity Bar"
+echo "     to open the Codex sidebar — your API key is"
+echo "     already configured, no login needed."
 echo ""
-echo "  ${PROVIDER_VAR}=${PROVIDER_KEY}"
-echo ""
-echo "  To use Codex CLI instead, open a new terminal and run:"
+echo "  Optional: use Codex CLI in a new terminal instead:"
 echo "  codex"
 echo "━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━"
 echo ""

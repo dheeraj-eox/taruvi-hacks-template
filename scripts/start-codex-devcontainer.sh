@@ -90,7 +90,7 @@ fetch_secret() {
   local name="$1"
   curl -sf \
     -H "Authorization: Api-Key ${TARUVI_API_KEY}" \
-    "${TARUVI_SITE_URL}/api/secrets/${name}/" \
+    "${TARUVI_SITE_URL}/api/secrets/${name}/?app=${TARUVI_APP_SLUG}" \
     2>/dev/null \
     | python3 -c "import sys,json; d=json.load(sys.stdin); v=d.get('data',{}).get('value',{}).get('text',''); print(v) if v else sys.exit(1)" \
     2>/dev/null

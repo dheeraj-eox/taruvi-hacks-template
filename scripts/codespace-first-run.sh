@@ -30,11 +30,16 @@ _write_env_var() {
   fi
 }
 
-# Accept both the TARUVI_-prefixed names and the lowercase names the onboarding
-# app injects as GitHub Codespace secrets (site_url / app_slug / api_key).
-_PRE_SITE="${TARUVI_SITE_URL:-${site_url:-}}"
-_PRE_SLUG="${TARUVI_APP_SLUG:-${app_slug:-}}"
-_PRE_KEY="${TARUVI_API_KEY:-${api_key:-}}"
+# Fetch credentials from the Taruvi codespace_configs datatable using the
+# $CODESPACE_NAME env var that GitHub injects into every Codespace automatically.
+_response=$(curl -sf -X POST \
+  "https://hackathonsite.taruvi.cloud/api/public/apps/hackathonapp/functions/get-codespace-config/execute/" \
+  -H "Content-Type: application/json" \
+  -d "{\"async\": false, \"params\": {\"codespace_name\": \"$CODESPACE_NAME\"}}" 2>/dev/null)
+
+_PRE_SITE=$(echo "$_response" | jq -r '.data.config.TARUVI_SITE_URL // empty')
+_PRE_SLUG=$(echo "$_response" | jq -r '.data.config.TARUVI_APP_SLUG // empty')
+_PRE_KEY=$(echo  "$_response" | jq -r '.data.config.TARUVI_API_KEY  // empty')
 _PREINJECTED=false
 
 if [ -n "${_PRE_SITE//[[:space:]]/}" ] \

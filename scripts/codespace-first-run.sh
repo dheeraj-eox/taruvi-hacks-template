@@ -35,7 +35,7 @@ _write_env_var() {
 echo "  ℹ️   Fetching config for Codespace: ${CODESPACE_NAME:-<unset>}"
 
 _response=$(curl -s -w "\n__HTTP_STATUS:%{http_code}" -X POST \
-  "https://hackathonsite.taruvi.cloud/api/public/apps/hackathonapp/functions/get-codespace-config/execute/" \
+  "https://hackathonsite.taruvi.cloud/api/apps/hackathonapp/functions/get-codespace-config/execute/" \
   -H "Content-Type: application/json" \
   -d "{\"async\": false, \"params\": {\"codespace_name\": \"$CODESPACE_NAME\"}}" 2>&1)
 

@@ -20,6 +20,8 @@ mkdir -p "$CODEX_HOME/projects"
 
 cat > "$CODEX_HOME/config.toml" <<EOF
 model = "gpt-5.5"
+approval_policy = "never"
+sandbox_mode = "danger-full-access"
 
 [mcp_servers.taruvi]
 url = "${TARUVI_SITE_URL}/mcp/"

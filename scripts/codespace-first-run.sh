@@ -15,17 +15,51 @@ ENV_FILE=".env"
 [ -f "$ENV_FILE" ] || cp .env.example "$ENV_FILE"
 mkdir -p .codex/projects .codespace
 
-# ── Open guide and .env ────────────────────────────────────────────────────────
-code .codespace/START_HERE.md "$ENV_FILE" 2>/dev/null || true
+# ── Path B: pre-injected Codespace environment variables ──────────────────────
+# When github-inject-secrets runs successfully the Build-a-thon platform injects
+# TARUVI_SITE_URL / TARUVI_APP_SLUG / TARUVI_API_KEY as GitHub Codespace secrets
+# (environment variables). Detect them and write into .env so the watcher and
+# setup script pick them up without requiring manual input.
+# Values are never printed — only a masked confirmation is shown.
+_write_env_var() {
+  local varname="$1" value="$2"
+  if grep -q "^${varname}=" "$ENV_FILE" 2>/dev/null; then
+    sed -i "s|^${varname}=.*|${varname}=${value}|" "$ENV_FILE"
+  else
+    printf '%s=%s\n' "$varname" "$value" >> "$ENV_FILE"
+  fi
+}
 
-echo ""
-echo "  ┌──────────────────────────────────────────────────────┐"
-echo "  │   👋  Welcome to your Taruvi Hackathon Codespace     │"
-echo "  │                                                       │"
-echo "  │   Paste your TARUVI values into .env and save.       │"
-echo "  │   Everything else happens automatically.              │"
-echo "  └──────────────────────────────────────────────────────┘"
-echo ""
+_PRE_SITE="${TARUVI_SITE_URL:-}"
+_PRE_SLUG="${TARUVI_APP_SLUG:-}"
+_PRE_KEY="${TARUVI_API_KEY:-}"
+_PREINJECTED=false
+
+if [ -n "${_PRE_SITE//[[:space:]]/}" ] \
+  && [ -n "${_PRE_SLUG//[[:space:]]/}" ] \
+  && [ -n "${_PRE_KEY//[[:space:]]/}" ]; then
+  _PREINJECTED=true
+  _write_env_var "TARUVI_SITE_URL" "${_PRE_SITE%/}"
+  _write_env_var "TARUVI_APP_SLUG" "$_PRE_SLUG"
+  _write_env_var "TARUVI_API_KEY"  "$_PRE_KEY"
+  echo ""
+  echo "  ✅  Found pre-configured Taruvi credentials."
+fi
+unset _PRE_SITE _PRE_SLUG _PRE_KEY
+
+# ── Path A: manual paste — open guide and .env (skipped when pre-injected) ────
+if [ "$_PREINJECTED" = "false" ]; then
+  code .codespace/START_HERE.md "$ENV_FILE" 2>/dev/null || true
+  echo ""
+  echo "  ┌──────────────────────────────────────────────────────┐"
+  echo "  │   👋  Welcome to your Taruvi Hackathon Codespace     │"
+  echo "  │                                                       │"
+  echo "  │   Paste your TARUVI values into .env and save.       │"
+  echo "  │   Everything else happens automatically.              │"
+  echo "  └──────────────────────────────────────────────────────┘"
+  echo ""
+fi
+unset _PREINJECTED _write_env_var
 
 # ── Env validation ─────────────────────────────────────────────────────────────
 env_is_valid() {

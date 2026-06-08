@@ -68,6 +68,12 @@
               "singleInstance": true,
               "command": "bash -c 'set -a; [ -f .env ] && source .env; set +a; exec codex'",
               "tooltip": "Launch Codex CLI — sources .env so no manual key entry is needed"
+            },
+            {
+              "name": "🚀 Deploy",
+              "singleInstance": true,
+              "command": "node scripts/deploy.mjs",
+              "tooltip": "Deploy your app to Taruvi Cloud"
             }
           ]
         }

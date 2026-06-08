@@ -30,24 +30,9 @@ _write_env_var() {
   fi
 }
 
-# Fetch credentials from the Taruvi codespace_configs datatable using the
-# $CODESPACE_NAME env var that GitHub injects into every Codespace automatically.
-echo "  ℹ️   Fetching config for Codespace: ${CODESPACE_NAME:-<unset>}"
-
-_response=$(curl -s -w "\n__HTTP_STATUS:%{http_code}" -X POST \
-  "https://hackathonsite.taruvi.cloud/api/apps/hackathonapp/functions/get-codespace-config/execute/" \
-  -H "Content-Type: application/json" \
-  -d "{\"async\": false, \"params\": {\"codespace_name\": \"$CODESPACE_NAME\"}}" 2>&1)
-
-_http_status=$(echo "$_response" | grep '__HTTP_STATUS:' | sed 's/.*__HTTP_STATUS://')
-_body=$(echo "$_response" | sed '/__HTTP_STATUS:/d')
-
-echo "  ℹ️   Config API status: ${_http_status:-failed}"
-echo "  ℹ️   Config API body: $_body"
-
-_PRE_SITE=$(echo "$_body" | jq -r '.data.config.TARUVI_SITE_URL // empty' 2>/dev/null)
-_PRE_SLUG=$(echo "$_body" | jq -r '.data.config.TARUVI_APP_SLUG // empty' 2>/dev/null)
-_PRE_KEY=$(echo  "$_body" | jq -r '.data.config.TARUVI_API_KEY  // empty' 2>/dev/null)
+_PRE_SITE="${TARUVI_SITE_URL:-}"
+_PRE_SLUG="${TARUVI_APP_SLUG:-}"
+_PRE_KEY="${TARUVI_API_KEY:-}"
 _PREINJECTED=false
 
 if [ -n "${_PRE_SITE//[[:space:]]/}" ] \

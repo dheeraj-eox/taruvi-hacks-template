@@ -118,10 +118,11 @@ else
 fi
 export "${PROVIDER_VAR}=${PROVIDER_KEY}"
 
-mkdir -p "${XDG_CONFIG_HOME}/openai" "$HOME/.config/openai"
+mkdir -p "${XDG_CONFIG_HOME}/openai" "$HOME/.config/openai" "$CODEX_HOME"
 printf '{"apiKey":"%s"}\n' "$PROVIDER_KEY" \
   | tee "${XDG_CONFIG_HOME}/openai/auth.json" \
-        "$HOME/.config/openai/auth.json" > /dev/null
+        "$HOME/.config/openai/auth.json" \
+        "$CODEX_HOME/auth.json" > /dev/null
 
 if grep -q "^export ${PROVIDER_VAR}=" ~/.bashrc 2>/dev/null; then
   sed -i "s|^export ${PROVIDER_VAR}=.*|export ${PROVIDER_VAR}=${PROVIDER_KEY}|" ~/.bashrc

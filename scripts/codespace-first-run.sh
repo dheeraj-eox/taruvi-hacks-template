@@ -30,9 +30,11 @@ _write_env_var() {
   fi
 }
 
-_PRE_SITE="${TARUVI_SITE_URL:-}"
-_PRE_SLUG="${TARUVI_APP_SLUG:-}"
-_PRE_KEY="${TARUVI_API_KEY:-}"
+# Accept both the TARUVI_-prefixed names and the lowercase names the onboarding
+# app injects as GitHub Codespace secrets (site_url / app_slug / api_key).
+_PRE_SITE="${TARUVI_SITE_URL:-${site_url:-}}"
+_PRE_SLUG="${TARUVI_APP_SLUG:-${app_slug:-}}"
+_PRE_KEY="${TARUVI_API_KEY:-${api_key:-}}"
 _PREINJECTED=false
 
 if [ -n "${_PRE_SITE//[[:space:]]/}" ] \

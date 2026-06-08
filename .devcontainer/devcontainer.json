@@ -35,9 +35,7 @@
         "extensions.disabled": ["GitHub.copilot-chat", "GitHub.copilot"],
         "chat.disableAIFeatures": true,
         "files.exclude": {
-          "node_modules/": true,
-          ".codex/": true,
-          ".codespace/": true
+          "node_modules/": true
         },
         "editor.minimap.enabled": false,
         "actionButtons": {

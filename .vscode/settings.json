@@ -3,23 +3,5 @@
     "GitHub.copilot-chat",
     "GitHub.copilot"
   ],
-  "chat.disableAIFeatures": true,
-  "actionButtons": {
-    "defaultColor": "#fff",
-    "loadNpmCommands": false,
-    "commands": [
-      {
-        "name": "$(rocket) Deploy",
-        "color": "#a78bfa",
-        "singleInstance": true,
-        "command": "node scripts/deploy.mjs"
-      },
-      {
-        "name": "$(browser) Preview",
-        "color": "#38bdf8",
-        "singleInstance": true,
-        "command": "xdg-open \"https://${CODESPACE_NAME}-5173.${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN}\" 2>/dev/null || echo \"Preview: https://${CODESPACE_NAME}-5173.${GITHUB_CODESPACES_PORT_FORWARDING_DOMAIN}\""
-      }
-    ]
-  }
+  "chat.disableAIFeatures": true
 }

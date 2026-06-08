@@ -90,7 +90,7 @@ fetch_secret() {
   local name="$1"
   curl -sf \
     -H "Authorization: Api-Key ${TARUVI_API_KEY}" \
-    "${TARUVI_SITE_URL}/api/secrets/${name}/?app=${TARUVI_APP_SLUG}" \
+    "${TARUVI_SITE_URL}/api/secrets/${name}/" \
     2>/dev/null \
     | python3 -c "import sys,json; d=json.load(sys.stdin); v=d.get('data',{}).get('value',{}).get('text',''); print(v) if v else sys.exit(1)" \
     2>/dev/null
@@ -111,43 +111,28 @@ else
   exit 1
 fi
 
-mkdir -p "${XDG_CONFIG_HOME}/openai" "$HOME/.config/openai"
-
-# The Taruvi secret may be a plain API key (sk-...) or a chatgpt OAuth auth
-# JSON ({"auth_mode":"chatgpt","tokens":{...}}). Detect which and handle each.
-if echo "$PROVIDER_KEY" | python3 -c "import sys,json; d=json.load(sys.stdin); assert 'auth_mode' in d" 2>/dev/null; then
-  # OAuth auth JSON — write directly to both VS Code extension paths and CLI path.
-  # Do NOT write to .env or .bashrc since there is no plain API key to export.
-  printf '%s\n' "$PROVIDER_KEY" \
-    | tee "${XDG_CONFIG_HOME}/openai/auth.json" \
-          "$HOME/.config/openai/auth.json" \
-          "$CODEX_HOME/auth.json" > /dev/null
-  echo "  ✅  AI provider credentials configured (OAuth mode)."
+if grep -q "^${PROVIDER_VAR}=" .env; then
+  sed -i "s|^${PROVIDER_VAR}=.*|${PROVIDER_VAR}=${PROVIDER_KEY}|" .env
 else
-  # Plain API key — persist to .env, .bashrc, write {"apiKey":"..."} auth files,
-  # and authenticate the Codex CLI.
-  if grep -q "^${PROVIDER_VAR}=" .env; then
-    sed -i "s|^${PROVIDER_VAR}=.*|${PROVIDER_VAR}=${PROVIDER_KEY}|" .env
-  else
-    echo "${PROVIDER_VAR}=${PROVIDER_KEY}" >> .env
-  fi
-  export "${PROVIDER_VAR}=${PROVIDER_KEY}"
-
-  printf '{"apiKey":"%s"}\n' "$PROVIDER_KEY" \
-    | tee "${XDG_CONFIG_HOME}/openai/auth.json" \
-          "$HOME/.config/openai/auth.json" > /dev/null
-
-  if grep -q "^export ${PROVIDER_VAR}=" ~/.bashrc 2>/dev/null; then
-    sed -i "s|^export ${PROVIDER_VAR}=.*|export ${PROVIDER_VAR}=${PROVIDER_KEY}|" ~/.bashrc
-  else
-    echo "export ${PROVIDER_VAR}=${PROVIDER_KEY}" >> ~/.bashrc
-  fi
-
-  if [ "$PROVIDER_VAR" = "OPENAI_API_KEY" ] && command -v codex >/dev/null 2>&1; then
-    printf '%s\n' "$PROVIDER_KEY" | codex login --with-api-key 2>/dev/null \
-      && echo "  ✅  Codex CLI authenticated." \
-      || echo "  ⚠️   Codex CLI login skipped — will use OPENAI_API_KEY env var."
-  fi
-
-  echo "  ✅  AI provider key configured."
+  echo "${PROVIDER_VAR}=${PROVIDER_KEY}" >> .env
 fi
+export "${PROVIDER_VAR}=${PROVIDER_KEY}"
+
+mkdir -p "${XDG_CONFIG_HOME}/openai" "$HOME/.config/openai"
+printf '{"apiKey":"%s"}\n' "$PROVIDER_KEY" \
+  | tee "${XDG_CONFIG_HOME}/openai/auth.json" \
+        "$HOME/.config/openai/auth.json" > /dev/null
+
+if grep -q "^export ${PROVIDER_VAR}=" ~/.bashrc 2>/dev/null; then
+  sed -i "s|^export ${PROVIDER_VAR}=.*|export ${PROVIDER_VAR}=${PROVIDER_KEY}|" ~/.bashrc
+else
+  echo "export ${PROVIDER_VAR}=${PROVIDER_KEY}" >> ~/.bashrc
+fi
+
+if [ "$PROVIDER_VAR" = "OPENAI_API_KEY" ] && command -v codex >/dev/null 2>&1; then
+  printf '%s\n' "$PROVIDER_KEY" | codex login --with-api-key 2>/dev/null \
+    && echo "  ✅  Codex CLI authenticated." \
+    || echo "  ⚠️   Codex CLI login skipped — will use OPENAI_API_KEY env var."
+fi
+
+echo "  ✅  AI provider key configured."

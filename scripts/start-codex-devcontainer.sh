@@ -125,23 +125,37 @@ if [ -z "$PROVIDER_KEY" ]; then
   fi
 fi
 
-if grep -q "^${PROVIDER_VAR}=" .env; then
-  sed -i "s|^${PROVIDER_VAR}=.*|${PROVIDER_VAR}=${PROVIDER_KEY}|" .env
-else
-  echo "${PROVIDER_VAR}=${PROVIDER_KEY}" >> .env
+# Detect if the stored value is a JSON object (ChatGPT OAuth tokens) or a plain API key
+PROVIDER_IS_JSON=false
+if echo "$PROVIDER_KEY" | python3 -c "import sys,json; json.load(sys.stdin)" 2>/dev/null; then
+  PROVIDER_IS_JSON=true
 fi
-export "${PROVIDER_VAR}=${PROVIDER_KEY}"
 
 mkdir -p "${XDG_CONFIG_HOME}/openai" "$HOME/.config/openai" "$CODEX_HOME"
-printf '{"apiKey":"%s"}\n' "$PROVIDER_KEY" \
-  | tee "${XDG_CONFIG_HOME}/openai/auth.json" \
-        "$HOME/.config/openai/auth.json" \
-        "$CODEX_HOME/auth.json" > /dev/null
 
-if grep -q "^export ${PROVIDER_VAR}=" ~/.bashrc 2>/dev/null; then
-  sed -i "s|^export ${PROVIDER_VAR}=.*|export ${PROVIDER_VAR}=${PROVIDER_KEY}|" ~/.bashrc
+if [ "$PROVIDER_IS_JSON" = "true" ]; then
+  # OAuth auth — the value IS the auth.json content, write it directly
+  printf '%s\n' "$PROVIDER_KEY" \
+    | tee "${XDG_CONFIG_HOME}/openai/auth.json" \
+          "$HOME/.config/openai/auth.json" \
+          "$CODEX_HOME/auth.json" > /dev/null
 else
-  echo "export ${PROVIDER_VAR}=${PROVIDER_KEY}" >> ~/.bashrc
+  # Plain API key — wrap for auth.json and export as env var
+  printf '{"apiKey":"%s"}\n' "$PROVIDER_KEY" \
+    | tee "${XDG_CONFIG_HOME}/openai/auth.json" \
+          "$HOME/.config/openai/auth.json" \
+          "$CODEX_HOME/auth.json" > /dev/null
+  if grep -q "^${PROVIDER_VAR}=" .env; then
+    sed -i "s|^${PROVIDER_VAR}=.*|${PROVIDER_VAR}=${PROVIDER_KEY}|" .env
+  else
+    echo "${PROVIDER_VAR}=${PROVIDER_KEY}" >> .env
+  fi
+  export "${PROVIDER_VAR}=${PROVIDER_KEY}"
+  if grep -q "^export ${PROVIDER_VAR}=" ~/.bashrc 2>/dev/null; then
+    sed -i "s|^export ${PROVIDER_VAR}=.*|export ${PROVIDER_VAR}=${PROVIDER_KEY}|" ~/.bashrc
+  else
+    echo "export ${PROVIDER_VAR}=${PROVIDER_KEY}" >> ~/.bashrc
+  fi
 fi
 
 echo "  ✅  AI provider key configured."

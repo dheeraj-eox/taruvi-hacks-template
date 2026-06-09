@@ -94,7 +94,7 @@ env_is_valid() {
 }
 
 # ── Skip setup on re-attach if already complete and env is still valid ─────────
-if [ -f "$MARKER" ] && env_is_valid; then
+if [ -f "$MARKER" ] && env_is_valid && [ -f ".codex/auth.json" ]; then
   echo "  ✅  Already set up."
   echo ""
 else

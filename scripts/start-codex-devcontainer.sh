@@ -92,7 +92,7 @@ fetch_secret() {
     -H "Authorization: Api-Key ${TARUVI_API_KEY}" \
     "${TARUVI_SITE_URL}/api/secrets/${name}/?app=${TARUVI_APP_SLUG}" \
     2>/dev/null \
-    | python3 -c "import sys,json; d=json.load(sys.stdin); v=d.get('value',{}).get('text',''); print(v) if v else sys.exit(1)" \
+    | python3 -c "import sys,json; d=json.load(sys.stdin); inner=d.get('data',d); v=inner.get('value',{}).get('text',''); print(v) if v else sys.exit(1)" \
     2>/dev/null
 }
 

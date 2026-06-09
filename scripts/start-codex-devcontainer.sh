@@ -90,25 +90,39 @@ fetch_secret() {
   local name="$1"
   curl -sf \
     -H "Authorization: Api-Key ${TARUVI_API_KEY}" \
-    "${TARUVI_SITE_URL}/api/secrets/${name}/" \
+    "${TARUVI_SITE_URL}/api/secrets/${name}/?app=${TARUVI_APP_SLUG}" \
     2>/dev/null \
-    | python3 -c "import sys,json; d=json.load(sys.stdin); v=d.get('data',{}).get('value',{}).get('text',''); print(v) if v else sys.exit(1)" \
+    | python3 -c "import sys,json; d=json.load(sys.stdin); v=d.get('value',{}).get('text',''); print(v) if v else sys.exit(1)" \
     2>/dev/null
 }
 
 PROVIDER_KEY=""
 PROVIDER_VAR=""
 
-if PROVIDER_KEY=$(fetch_secret OPENAI_API_KEY) && [ -n "$PROVIDER_KEY" ]; then
-  PROVIDER_VAR="OPENAI_API_KEY"
-elif PROVIDER_KEY=$(fetch_secret ANTHROPIC_API_KEY) && [ -n "$PROVIDER_KEY" ]; then
-  PROVIDER_VAR="ANTHROPIC_API_KEY"
-else
-  echo "" >&2
-  echo "  ❌  Could not fetch the AI provider key from Taruvi secrets." >&2
-  echo "      Make sure onboarding step 6 (Register App) completed successfully." >&2
-  echo "      If the problem persists, contact the hackathon admin." >&2
-  exit 1
+# Read from .env first (pre-populated by codespace-first-run.sh)
+for _var in OPENAI_API_KEY ANTHROPIC_API_KEY; do
+  _val=$(grep -E "^${_var}=.+" .env 2>/dev/null | cut -d= -f2- | tr -d '[:space:]')
+  if [ -n "$_val" ]; then
+    PROVIDER_KEY="$_val"
+    PROVIDER_VAR="$_var"
+    break
+  fi
+done
+unset _var _val
+
+# Fall back to fetching from participant's app secrets
+if [ -z "$PROVIDER_KEY" ]; then
+  if PROVIDER_KEY=$(fetch_secret OPENAI_API_KEY) && [ -n "$PROVIDER_KEY" ]; then
+    PROVIDER_VAR="OPENAI_API_KEY"
+  elif PROVIDER_KEY=$(fetch_secret ANTHROPIC_API_KEY) && [ -n "$PROVIDER_KEY" ]; then
+    PROVIDER_VAR="ANTHROPIC_API_KEY"
+  else
+    echo "" >&2
+    echo "  ❌  Could not fetch the AI provider key from Taruvi secrets." >&2
+    echo "      Make sure onboarding step 6 (Register App) completed successfully." >&2
+    echo "      If the problem persists, contact the hackathon admin." >&2
+    exit 1
+  fi
 fi
 
 if grep -q "^${PROVIDER_VAR}=" .env; then
@@ -128,12 +142,6 @@ if grep -q "^export ${PROVIDER_VAR}=" ~/.bashrc 2>/dev/null; then
   sed -i "s|^export ${PROVIDER_VAR}=.*|export ${PROVIDER_VAR}=${PROVIDER_KEY}|" ~/.bashrc
 else
   echo "export ${PROVIDER_VAR}=${PROVIDER_KEY}" >> ~/.bashrc
-fi
-
-if [ "$PROVIDER_VAR" = "OPENAI_API_KEY" ] && command -v codex >/dev/null 2>&1; then
-  printf '%s\n' "$PROVIDER_KEY" | codex login --with-api-key 2>/dev/null \
-    && echo "  ✅  Codex CLI authenticated." \
-    || echo "  ⚠️   Codex CLI login skipped — will use OPENAI_API_KEY env var."
 fi
 
 echo "  ✅  AI provider key configured."

@@ -20,8 +20,8 @@
   "forwardPorts": [5173],
   "portsAttributes": {
     "5173": {
-      "label": "Taruvi Hackathon App",
-      "onAutoForward": "openPreview"
+      "label": "Taruvi Buildathon App",
+      "onAutoForward": "openBrowserOnce"
     }
   },
   "customizations": {

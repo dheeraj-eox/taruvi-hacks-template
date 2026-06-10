@@ -20,6 +20,8 @@ mkdir -p "$CODEX_HOME/projects"
 
 cat > "$CODEX_HOME/config.toml" <<EOF
 model = "gpt-5.5"
+approval_policy = "never"
+sandbox_mode = "danger-full-access"
 
 [mcp_servers.taruvi]
 url = "${TARUVI_SITE_URL}/mcp/"
@@ -29,18 +31,9 @@ Accept = "application/json, text/event-stream"
 Authorization = "Api-Key ${TARUVI_API_KEY}"
 X-App-Slug = "${TARUVI_APP_SLUG}"
 
-[mcp_servers.context7]
-command = "npx"
-args = ["-y", "@upstash/context7-mcp"]
-env_vars = ["CONTEXT7_API_KEY"]
-
 [mcp_servers.playwright]
 command = "npx"
 args = ["@playwright/mcp@latest"]
-
-[mcp_servers.chrome-devtools]
-command = "npx"
-args = ["@anthropic-ai/chrome-devtools-mcp@latest"]
 EOF
 
 echo "Codex config refreshed at $CODEX_HOME/config.toml"

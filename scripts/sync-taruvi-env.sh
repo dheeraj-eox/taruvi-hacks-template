@@ -62,9 +62,11 @@ trim_value() {
 
 load_env_file "$ENV_FILE"
 
-SITE_URL="$(trim_value "${TARUVI_SITE_URL:-}")"
-APP_SLUG="$(trim_value "${TARUVI_APP_SLUG:-}")"
-API_KEY="$(trim_value "${TARUVI_API_KEY:-}")"
+# Accept both TARUVI_-prefixed names and the lowercase names injected by the
+# onboarding app as GitHub Codespace secrets (site_url / app_slug / api_key).
+SITE_URL="$(trim_value "${TARUVI_SITE_URL:-${site_url:-}}")"
+APP_SLUG="$(trim_value "${TARUVI_APP_SLUG:-${app_slug:-}}")"
+API_KEY="$(trim_value "${TARUVI_API_KEY:-${api_key:-}}")"
 
 SITE_URL="${SITE_URL%/}"
 

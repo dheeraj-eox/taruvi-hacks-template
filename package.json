@@ -1,4 +1,5 @@
 {
+  "taruvi": { "appSlug": "project-management" },
   "name": "taruvi-refine-template",
   "version": "0.1.0",
   "private": true,

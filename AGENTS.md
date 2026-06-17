@@ -19,8 +19,6 @@ This is a **Refine.dev v5** project - a React-based framework for building admin
 
 **CRITICAL:** This project uses **Refine v5** which has significantly different hook syntax from v4. Always use the v5 patterns documented in the "[IMPORTANT: Refine v5 Syntax Changes](#important-refine-v5-syntax-changes)" section below.
 
-**CRITICAL:** Even if the user asks for plain HTML, CSS, or JavaScript — always use React, Refine v5 hooks, MUI components, and TypeScript. Do not build outside the framework.
-
 IMPORTANT: Always use Context7 MCP Skill when I need library/API, Refine v5, MUI documentation without me having to explicitly ask.
 
 **When confused or need clarification:** Use the Task tool with `subagent_type='Explore'` and set thoroughness to "medium" or "very thorough" to understand the codebase patterns before making changes.
@@ -47,32 +45,6 @@ After shipping a fix, truncate before asking the user to re-test so the next rep
 
 If the file is missing, no errors have been captured yet — ask the user to reproduce the issue once, then re-read.
 
-## Mandatory UI / Design System Preflight
-
-For any task that **renders, styles, or restyles UI** — new pages, layouts, forms, tables, charts, status badges, colors, typography, spacing, theme work, MUI overrides, or any "make it look like X" request:
-
-1. You MUST open and read [`UI_Guidelines.md`](UI_Guidelines.md) first. It is the companion to the MUI theme and resolves design-system ambiguities the theme cannot encode on its own.
-2. The single source of truth for design tokens is [`themeOptions.ts`](themeOptions.ts) — import `taruviTokens` for raw values:
-   ```ts
-   import { taruviTokens } from "../../themeOptions"; // or from "@/theme/themeOptions"
-   ```
-   Never hardcode brand hex strings (`#1E88E5`, `#388e3c`, `#1AB3E6`, etc.) — pull them from `taruviTokens`.
-3. Prefer plain MUI components (`<Button>`, `<Chip>`, `<Card>`, `<TextField>`, `<Alert>`, `<Table*>`, `<ListItemButton>`, `<Breadcrumbs>`, `<Tabs>`, `<Dialog>`, …) — the theme already applies every spec'd size, weight, radius, padding, shadow, and color via component overrides. Do not reimplement these styles with `sx` or custom CSS.
-4. For things the theme cannot enforce (page-level layout, form-row grid, hero gradient, status chip mapping to MUI color slots, "ON HOLD" / "TO DO" chips, chart colors via Recharts, icon conventions, avatar sizing) — follow the snippets in `UI_Guidelines.md`.
-5. Use **`*Rounded`** icon variants from `@mui/icons-material` (e.g., `EditRoundedIcon`, `AddRoundedIcon`) — the design system uses Material Icons Rounded, not the filled defaults.
-6. **Page anatomy is mandatory**, not optional decoration. For any Refine page (list, show, create/edit, dashboard), the visual contract lives in [`UI_Guidelines.md`](UI_Guidelines.md) and the **implementation lives in the `taruvi-refine-providers` skill — read both before writing the page**, not just the styling layer. In particular:
-   - **Every list page MUST ship with a search input, at least one filter control, an active-filter chip row, server-side pagination, and the four distinct empty-state variants** (no data yet / no results / no matching items / unable to load) — see [`§4.6`](UI_Guidelines.md) + [`§4.7`](UI_Guidelines.md), plus the skill's "DataGrid checklist" + `database-provider.md` for the wiring. Apply column-type rules from [`§4.12`](UI_Guidelines.md) (text left, numbers right, `MMM DD, YYYY` dates, actions right, 5-6 columns max).
-   - **Every show / detail page MUST include** breadcrumb + H2 title + status chip + action cluster + meta line + tabs-with-counts for related data — see [`§4.11`](UI_Guidelines.md). Bare field dumps are incomplete.
-   - **Every destructive action (delete, archive, bulk-delete, …) MUST go through a confirmation dialog** matching [`§4.8`](UI_Guidelines.md) — title is a question, body names the specific item or count and states "This action cannot be undone", primary CTA is `color="error"` with the verb (not "OK"). Wiring `useDelete` directly to a delete icon click is a bug.
-   - **Lists with selection checkboxes MUST have a bulk-actions toolbar** ([`§4.9`](UI_Guidelines.md)) that appears on selection, shows the count, and routes destructive bulk actions through §4.8.
-   - **Never render a blank page during data load.** Use one of the three loading patterns from [`§4.10`](UI_Guidelines.md) — skeleton for initial loads, spinner overlay for mid-action refetches, inline button spinner for async submits.
-   - **Forms** follow [`§4.3`](UI_Guidelines.md) — single-column default, two-column for related paired inputs, section titles for grouping, Cancel-left/Save-right actions, and the 8-item accessibility checklist (labels, types, contrast, error specificity, keyboard, aria-describedby, required marker, 44px mobile).
-   - Filters and search push into Refine's server-side `filters[]`, never into component state filtered in React.
-
-   If you can't show that you read the skill section relevant to the page type you're building, you aren't ready to write it.
-
-If `UI_Guidelines.md` or `themeOptions.ts` is missing, stop and tell the user — do not implement design from memory.
-
 ## Mandatory Taruvi Preflight
 
 For any task involving Taruvi, Refine + Taruvi, `@taruvi/sdk`, or `@taruvi/refine-providers`:
@@ -82,15 +54,6 @@ For any task involving Taruvi, Refine + Taruvi, `@taruvi/sdk`, or `@taruvi/refin
 3. Follow its Step 4 to load all relevant module skills before writing any code.
 
 Do not implement from memory. Do not treat prior knowledge as sufficient. If these files are unavailable, stop and say so.
-
-### User Data Access Rule (Mandatory)
-- Taruvi platform already provides built-in user management (users, roles, auth).
-- Never create custom user/auth datatables (for example: `users`, `auth_users`, `user_roles`, `passwords`, `sessions`) to replace platform identity.
-- Never access `auth_user` through datatable routes from frontend code (for example `datatables/auth_user/data`).
-- Never use `resource: "auth_user"` in Refine hooks/components.
-- Always access users via the `user` provider (`dataProviderName: "user"`, with `resource: "users"`).
-- Manage users/roles through the dedicated user/app APIs and MCP tools (`list_users`, `create_user`, `update_user`, `manage_roles`, `manage_role_assignments`) — not manual SQL CRUD on identity data.
-- If user identity data is not available to the current role, degrade gracefully in UI (no crashing/spammy retries).
 
 ## IMPORTANT: Refine v5 Syntax Changes
 
@@ -225,23 +188,6 @@ const { result: category, query: { isLoading: categoryLoading } } = useOne({
 // blogPost and category are direct objects, no need for .data
 ```
 
-### Auth, Settings, and Input Safety
-
-- Taruvi auth is redirect-based. Keep `/login` wired to `LoginRedirect`; do not replace it with a local `AuthPage` form.
-- Keep protected Taruvi queries behind auth. App-wide settings/nav/theme fetches must skip protected API calls until a session token exists or live inside an authenticated route boundary.
-- For forms, normalize nullable API values before passing them to MUI inputs (`value={field.value ?? ""}`, boolean `checked`) to avoid uncontrolled/controlled warnings.
-
-### Stable Query Inputs
-
-When building lists, dashboards, or any data-driven page, keep query inputs stable across renders:
-
-- memoize `filters`, `sorters`, `meta`, and other query objects when they are derived in component scope
-- avoid inline `new Date()`, `Date.now()`, `Math.random()`, or freshly created arrays/objects inside hook arguments
-- if a cutoff time or default date range is needed, compute it once with `useMemo` or a top-level constant
-- if a query refetches repeatedly without user input, inspect the hook arguments first before blaming the provider
-
-This matters most for `useList`, `useDataGrid`, and `useMany`, because unstable arguments change the query key and can cause repeated datatable requests.
-
 ## Environment Configuration
 
 ```env
@@ -339,53 +285,14 @@ npm run refine       # Run Refine CLI
 15. **Use `dataProviderName`** - Specify which provider (storage, functions, app, user, analytics)
 16. **All 8 providers are configured** - See `/src/providers/refineProviders.ts`
 17. **Import types from refineProviders** - `import type { TaruviUser, TaruviMeta } from "./providers/refineProviders"`
-18. **Never query `auth_user` as a datatable** - Always use the `user` provider for user/role operations
-19. **Never build custom auth/user tables** - Use platform user management and role APIs instead of manual identity datatables
 
 This is a **Refine.dev v5 project** - leverage the framework's hooks and patterns rather than reinventing CRUD operations.
 
-For any UI/style/theme work, follow [`UI_Guidelines.md`](UI_Guidelines.md) and `taruviTokens` from [`themeOptions.ts`](themeOptions.ts) — see the "Mandatory UI / Design System Preflight" section near the top of this file for the full rules.
+Follow UI Guidelines from UI_Guidelines.md
 
-## Frontend Deployment
+## Deployment & Backend Operations
 
-### Automated Deploy (via script)
-```bash
-npm run deploy
-```
-Prompts for site name, then builds, zips `dist/`, and uploads to Taruvi frontend workers API.
+For deployment and backend operations, read the relevant skill from `skills/`:
 
-### Manual Deploy (inside Docker)
-
-1. **Build:**
-   ```bash
-   npm run build
-   ```
-
-2. **Zip the dist folder:**
-   ```bash
-   cd /app && zip -r dist.zip dist/
-   ```
-
-3. **Upload to Taruvi:**
-   ```bash
-   curl -X POST "https://api.taruvi.cloud/sites/${SITE_NAME}/api/cloud/frontend_workers/" \
-     -H "Authorization: Api-Key ${TARUVI_API_KEY}" \
-     -F "name=${TARUVI_APP_SLUG}" \
-     -F "is_internal=true" \
-     -F "file=@dist.zip;type=application/zip"
-   ```
-
-4. **Cleanup:**
-   ```bash
-   rm -f dist.zip
-   ```
-
-### Environment Variables Required
-- `TARUVI_API_KEY` — API key for authentication
-- `TARUVI_APP_SLUG` — App/worker name
-- `SITE_NAME` — Target site (e.g., inferred from `TARUVI_SITE_URL` hostname)
-
-### Build Notes (Docker)
-- `refine build` does NOT work inside the Docker container (symlinked node_modules)
-- Use `vite build --configLoader runner` directly (already configured in `npm run build`)
-- Set `XDG_CONFIG_HOME=/tmp` if running refine CLI commands
+- **Deploy frontend** → read `taruvi-app-deploy/SKILL.md`
+- **Export backend** → read `taruvi-app-export/SKILL.md`

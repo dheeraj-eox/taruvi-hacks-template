@@ -1,0 +1,16 @@
+{
+  "name": "project-management",
+  "slug": "project-management",
+  "description": "",
+  "is_active": true,
+  "settings": {
+    "display_name": "project-management",
+    "primary_color": "#1976d2",
+    "secondary_color": "#dc004e",
+    "icon_background_color": "#ffffff",
+    "category": "analytics",
+    "documentation_url": "",
+    "support_email": "",
+    "default_frontend_worker_slug": null
+  }
+}

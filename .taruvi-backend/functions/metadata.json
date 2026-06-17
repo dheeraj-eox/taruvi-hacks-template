@@ -1,0 +1,19 @@
+[
+  {
+    "name": "test-function",
+    "slug": "test-function",
+    "environment": "python",
+    "execution_mode": "app",
+    "description": "",
+    "is_active": true,
+    "async_mode": false,
+    "is_public": false,
+    "code": "def main(params, user_data, sdk_client):\n    \"\"\"Basic function template.\"\"\"\n    message = params.get('message', 'Hello, World!')\n    username = user_data.get('username', 'unknown')\n\n    return {\n        'message': message,\n        'executed_by': username\n    }",
+    "webhook_url": "",
+    "auth_config": {},
+    "headers": {},
+    "config": {},
+    "filter_conditions": null,
+    "tags": []
+  }
+]

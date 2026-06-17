@@ -1,6 +1,6 @@
 import { Authenticated, Refine } from "@refinedev/core";
 import { DevtoolsPanel, DevtoolsProvider } from "@refinedev/devtools";
-import { RefineKbar, RefineKbarProvider } from "@refinedev/kbar";
+import { RefineKbar, RefineKbarProvider } from "@refinedev/kbar"; 
 
 import {
   ErrorComponent,
@@ -45,6 +45,7 @@ const AppContent = () => {
 
   return (
     <>
+    <h1>HELLO</h1>
       <div
         ref={navRef}
         data-nav-container

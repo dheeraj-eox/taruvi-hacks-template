@@ -1,0 +1,31 @@
+[
+  {
+    "policy_type": "resource",
+    "entity_type": "function",
+    "name": "test-function",
+    "rules": [
+      {
+        "actions": [
+          "*"
+        ],
+        "roles": [
+          "*"
+        ],
+        "effect": "EFFECT_ALLOW",
+        "name": "allow_wildcard",
+        "derived_roles": []
+      },
+      {
+        "actions": [
+          "execute"
+        ],
+        "roles": [
+          "*"
+        ],
+        "effect": "EFFECT_ALLOW",
+        "name": "allow_execute",
+        "derived_roles": []
+      }
+    ]
+  }
+]

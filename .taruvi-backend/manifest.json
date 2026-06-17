@@ -1,0 +1,102 @@
+{
+  "created_at": "2026-06-17T11:42:43.257123+00:00",
+  "created_by": "admin",
+  "export_options": {
+    "include_analytics": true,
+    "include_app_roles": true,
+    "include_datatables": true,
+    "include_events": true,
+    "include_frontend_workers": false,
+    "include_functions": true,
+    "include_policies": true,
+    "include_secrets": true,
+    "include_storage": true,
+    "include_widgets": true
+  },
+  "format": "taruvi-app-package",
+  "integrity": {
+    "manifest_checksum": "sha256:db47dae2a7e87b33aab9f47fad6f5567f31a066e159685555db87512d07fc8f1",
+    "package_checksum": "sha256:1bfdf3ca41f18b34d41783c1de680f5f6dde02a3604437a4418650c5206d7ea2"
+  },
+  "modules": {
+    "analytics": {
+      "count": 0,
+      "files": {
+        "metadata.json": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      }
+    },
+    "app": {
+      "count": 1,
+      "files": {
+        "metadata.json": "sha256:a09e22c340a5ecaf3655ef1a3c84900b3da4387420597ca465a43991134bd932"
+      }
+    },
+    "app_roles": {
+      "count": 0,
+      "files": {
+        "metadata.json": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      }
+    },
+    "datatables": {
+      "count": 0,
+      "files": {
+        "metadata.json": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      }
+    },
+    "events": {
+      "count": 0,
+      "files": {
+        "metadata.json": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      }
+    },
+    "frontend_workers": {
+      "count": 0,
+      "files": {}
+    },
+    "functions": {
+      "count": 0,
+      "files": {
+        "metadata.json": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      }
+    },
+    "policies": {
+      "count": 0,
+      "files": {
+        "metadata.json": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      }
+    },
+    "secrets": {
+      "count": 0,
+      "files": {
+        "metadata.json": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      }
+    },
+    "storage": {
+      "count": 0,
+      "files": {
+        "metadata.json": "sha256:9bb2cfe950c41da8d19d5f4fedc92debeeba81b0f59b22ba581bace5f4f11ca8"
+      },
+      "total_files": 0,
+      "total_size_bytes": 0
+    },
+    "tags": {
+      "count": 0,
+      "files": {
+        "metadata.json": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+      }
+    },
+    "widgets": {
+      "count": 0,
+      "files": {}
+    }
+  },
+  "package": {
+    "app_name": "project-management",
+    "app_slug": "project-management",
+    "description": ""
+  },
+  "requires": {
+    "taruvi_version": ">=1.0.0"
+  },
+  "version": "1.0.0"
+}

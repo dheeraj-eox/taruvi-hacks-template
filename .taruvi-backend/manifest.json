@@ -1,5 +1,5 @@
 {
-  "created_at": "2026-06-17T11:42:43.257123+00:00",
+  "created_at": "2026-06-17T11:46:28.699725+00:00",
   "created_by": "admin",
   "export_options": {
     "include_analytics": true,
@@ -15,8 +15,8 @@
   },
   "format": "taruvi-app-package",
   "integrity": {
-    "manifest_checksum": "sha256:db47dae2a7e87b33aab9f47fad6f5567f31a066e159685555db87512d07fc8f1",
-    "package_checksum": "sha256:1bfdf3ca41f18b34d41783c1de680f5f6dde02a3604437a4418650c5206d7ea2"
+    "manifest_checksum": "sha256:12d0c9f22186f1e2078bb7245d15c772b04f0f3485b9078d3e253d10d6cfd762",
+    "package_checksum": "sha256:c206763b8e2e7ac37386f2c1337c68f5f62f019b5e9196f2ab7d31cf09119636"
   },
   "modules": {
     "analytics": {
@@ -54,15 +54,15 @@
       "files": {}
     },
     "functions": {
-      "count": 0,
+      "count": 1,
       "files": {
-        "metadata.json": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        "metadata.json": "sha256:8bfecb86c978dfb74ccc5456911084dcc1a181dd694154cc9a46bd324c2fc361"
       }
     },
     "policies": {
-      "count": 0,
+      "count": 1,
       "files": {
-        "metadata.json": "sha256:4f53cda18c2baa0c0354bb5f9a3ecbe5ed12ab4d8e11ba873c2f11161202b945"
+        "metadata.json": "sha256:1da001424e1559c4a099fe5599cf7f7bd6b41498dddf0927b15a6510c295ad69"
       }
     },
     "secrets": {
@@ -74,7 +74,7 @@
     "storage": {
       "count": 0,
       "files": {
-        "metadata.json": "sha256:9bb2cfe950c41da8d19d5f4fedc92debeeba81b0f59b22ba581bace5f4f11ca8"
+        "metadata.json": "sha256:e013fc9f220a361caa9fb62b2f71db8ae2efa1e23a1d21e3fd505e64a5a809ac"
       },
       "total_files": 0,
       "total_size_bytes": 0
